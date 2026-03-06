@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "declaration": true,
+        "removeComments": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "target": "ES2021",
+        "moduleResolution": "node",
+        "outDir": "./dist",
+        "sourceMap": true,
+        "baseUrl": ".",
+        /* Strict Type-Checking Options */
+        "incremental": true,
+        "skipLibCheck": true,
+        "strictNullChecks": true,
+        "noImplicitAny": true,
+        "strictBindCallApply": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "paths": {
+            "@multmarkets/shared": [
+                "../../packages/shared/src/index.ts"
+            ],
+            "@multmarkets/database": [
+                "../../packages/database/src/index.ts"
+            ]
+        }
+    }
+}
