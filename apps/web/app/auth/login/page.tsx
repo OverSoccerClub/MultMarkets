@@ -139,7 +139,7 @@ export default function LoginPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between items-center ml-1">
                                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Acesso Criptografado</label>
-                                <Link href="/auth/forgot-password" id="forgot-password" className="text-[10px] font-bold text-accent-500/70 hover:text-accent-500 uppercase tracking-widest transition-colors">
+                                <Link href={"/auth/forgot-password" as any} id="forgot-password" className="text-[10px] font-bold text-accent-500/70 hover:text-accent-500 uppercase tracking-widest transition-colors">
                                     Recuperar
                                 </Link>
                             </div>

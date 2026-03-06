@@ -23,9 +23,6 @@ RUN npm ci
 # Copy source code of the pruned workspace
 COPY --from=builder /app/out/full/ .
 
-# Generate Prisma Client (required because the web app might depend on db)
-RUN npx prisma generate --schema=packages/database/prisma/schema.prisma || true
-
 # Build the project
 RUN npm run build --filter=@multmarkets/web...
 
