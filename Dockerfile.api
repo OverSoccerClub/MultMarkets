@@ -42,9 +42,9 @@ COPY --from=installer --chown=nestjs:nodejs /app/node_modules ./node_modules
 COPY --from=installer --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
 COPY --from=installer --chown=nestjs:nodejs /app/apps/api/package.json ./apps/api/package.json
 
-# Copy database dependencies
-COPY --from=installer --chown=nestjs:nodejs /app/packages/database/node_modules ./packages/database/node_modules
-COPY --from=installer --chown=nestjs:nodejs /app/packages/database/package.json ./packages/database/package.json
+# Copy database and shared packages (required for symlinks in node_modules)
+COPY --from=installer --chown=nestjs:nodejs /app/packages/database ./packages/database
+COPY --from=installer --chown=nestjs:nodejs /app/packages/shared ./packages/shared
 
 EXPOSE 3001
 
