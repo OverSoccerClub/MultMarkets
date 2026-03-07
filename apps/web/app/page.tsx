@@ -315,6 +315,11 @@ export default function HomePage() {
                     <p className="text-body-lg">Nenhum mercado encontrado.</p>
                 </div>
             )}
+
+            {/* System Version */}
+            <div className="mt-20 border-t border-white/5 pt-8 text-center text-[10px] text-white/20 font-mono uppercase tracking-[0.3em] select-none hover:text-white/40 transition-colors">
+                MultMarkets OS v1.0.0
+            </div>
         </div>
     );
 }
