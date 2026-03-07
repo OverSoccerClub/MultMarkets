@@ -23,8 +23,25 @@ async function bootstrap() {
     );
 
     // ── CORS ──────────────────────────────────────────────────────────
+    const allowedOrigins = [
+        clientUrl,
+        'http://localhost:3000',
+        'http://localhost:19006',
+        'https://www.multmarkets.com',
+        'https://multmarkets.com',
+        'https://mult-markets-plataforma-web.ptehea.easypanel.host'
+    ];
+
     app.enableCors({
-        origin: true, // Allow all origins in production for easier deployment, or specify your domain
+        origin: (origin, callback) => {
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+            if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     });
