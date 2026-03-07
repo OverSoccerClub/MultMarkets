@@ -36,7 +36,7 @@ export function Navbar() {
             setWallet(data);
             return data;
         },
-        enabled: isAuthenticated && user?.role !== 'ADMIN',
+        enabled: isAuthenticated && !!user && user.role !== 'ADMIN',
         refetchInterval: 30_000,
     });
 

@@ -22,9 +22,10 @@ export default function AdminDashboardPage() {
     });
 
     const drafts = draftsData?.data || [];
+    const marketsArray = Array.isArray(markets) ? markets : (markets?.items || []);
 
     const stats = [
-        { label: 'Mercados Abertos', value: markets.length, icon: BarChart3, color: 'text-white' },
+        { label: 'Mercados Abertos', value: marketsArray.length, icon: BarChart3, color: 'text-white' },
         { label: 'Predições do Bot (Rascunhos)', value: drafts.length, icon: Bot, color: 'text-accent-500' },
     ];
 
@@ -79,7 +80,7 @@ export default function AdminDashboardPage() {
                 <div className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-[3rem] p-10 h-96 flex flex-col">
                     <h3 className="text-lg font-black uppercase tracking-tight mb-8">Próximos Fechamentos</h3>
                     <div className="space-y-6 overflow-y-auto flex-1 pr-2 custom-scrollbar">
-                        {markets.slice(0, 5).map((m: any) => (
+                        {marketsArray.slice(0, 5).map((m: any) => (
                             <div key={m.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.03] border border-white/5">
                                 <div className="h-2 w-2 rounded-full bg-accent-500 animate-pulse" />
                                 <div className="flex-1 min-w-0">
