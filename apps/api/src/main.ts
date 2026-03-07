@@ -45,8 +45,8 @@ async function bootstrap() {
         logger.log(`📚 Swagger: http://localhost:${port}/api/docs`);
     }
 
-    await app.listen(port);
-    logger.log(`🚀 API running on http://localhost:${port}`);
+    await app.listen(port, '0.0.0.0');
+    logger.log(`🚀 API running on http://0.0.0.0:${port}`);
 }
 
 bootstrap();
