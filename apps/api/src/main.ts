@@ -9,7 +9,7 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     const config = app.get(ConfigService);
-    const port = config.get<number>('PORT', 3001);
+    const port = config.get<number>('PORT', 3000);
     const clientUrl = config.get<string>('CLIENT_URL', 'http://localhost:3000');
 
     // ── Global pipes ──────────────────────────────────────────────────
