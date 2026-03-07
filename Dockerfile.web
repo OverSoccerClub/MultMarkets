@@ -23,14 +23,24 @@ RUN npm ci
 # Copy source code of the pruned workspace
 COPY --from=builder /app/out/full/ .
 
-# Build the project (it will use the next.config.js env mapping at runtime)
+# Receive build-time env vars for Next.js public variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
-# Build the project
-RUN npm run build --filter=@multmarkets/web...
+# Build the project, forcing the env vars inline to bypass any turborepo bugs
+RUN NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL npm run build --filter=@multmarkets/web...
 
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Re-declare env vars for the runtime server (required for Next.js Server Actions)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 # Copy Next.js files
 
