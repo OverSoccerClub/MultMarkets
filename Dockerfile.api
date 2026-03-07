@@ -49,8 +49,8 @@ COPY --from=installer --chown=nestjs:nodejs /app/apps/api/package.json ./apps/ap
 COPY --from=installer --chown=nestjs:nodejs /app/packages/database ./packages/database
 COPY --from=installer --chown=nestjs:nodejs /app/packages/shared ./packages/shared
 
-EXPOSE 3001
+EXPOSE 3000
 
-ENV PORT=3001
+ENV PORT=3000
 
 CMD ["node", "apps/api/dist/main.js"]
