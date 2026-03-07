@@ -4,12 +4,11 @@
 import axios from 'axios';
 
 const getApiUrl = () => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-    // Em produção, se a variável não for injetada, use a URL fixa da API
+    // Em produção, ignora qualquer localhost injetado e força a URL real
     if (process.env.NODE_ENV === 'production') {
         return 'https://mult-markets-plataforma-api.ptehea.easypanel.host/api/v1';
     }
-    return 'http://localhost:3001/api/v1';
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 };
 
 const API_URL = getApiUrl();
