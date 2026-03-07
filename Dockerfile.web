@@ -23,6 +23,13 @@ RUN npm ci
 # Copy source code of the pruned workspace
 COPY --from=builder /app/out/full/ .
 
+# Receive build-time env vars for Next.js public variables
+# (NEXT_PUBLIC_* are baked into the bundle at build time, not runtime)
+ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ARG NEXT_PUBLIC_WS_URL=http://localhost:3001
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 # Build the project
 RUN npm run build --filter=@multmarkets/web...
 
