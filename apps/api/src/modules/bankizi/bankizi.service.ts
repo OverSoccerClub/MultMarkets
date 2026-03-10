@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 interface BankiziTokenResponse {
@@ -53,10 +53,31 @@ export class BankiziService {
         this.clientId = this.config.get<string>('BANKIZI_CLIENT_ID', '');
         this.clientSecret = this.config.get<string>('BANKIZI_CLIENT_SECRET', '');
         this.accountId = this.config.get<string>('BANKIZI_ACCOUNT_ID', '');
+
+        if (!this.clientId || !this.clientSecret || !this.accountId) {
+            this.logger.warn('⚠ Bankizi credentials not configured — PIX operations will be unavailable');
+        } else {
+            this.logger.log('Bankizi service initialized');
+        }
+    }
+
+    /** Whether Bankizi credentials are properly configured */
+    get isConfigured(): boolean {
+        return !!(this.clientId && this.clientSecret && this.accountId);
+    }
+
+    private ensureConfigured(): void {
+        if (!this.isConfigured) {
+            throw new BadRequestException(
+                'Gateway PIX não configurado. Entre em contato com o suporte.',
+            );
+        }
     }
 
     // ── Authentication ─────────────────────────────────────────────────
     private async authenticate(): Promise<string> {
+        this.ensureConfigured();
+
         // Return cached token if still valid (with 60s buffer)
         if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) {
             return this.accessToken;
