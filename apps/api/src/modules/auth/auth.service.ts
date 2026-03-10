@@ -10,6 +10,7 @@ import * as QRCode from 'qrcode';
 import { randomUUID as uuid } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { EmailService } from '../email/email.service';
 import { JWT } from '@multmarkets/shared';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class AuthService {
         private prisma: PrismaService,
         private jwt: JwtService,
         private config: ConfigService,
+        private emailService: EmailService,
     ) { }
 
     // ── REGISTER ─────────────────────────────────────────────────────
@@ -65,10 +67,30 @@ export class AuthService {
             return { user: newUser, verifyToken: token };
         });
 
-        // TODO: Send verification email
         this.logger.log(`New user registered: ${user.user.email}`);
 
-        return { message: 'Conta criada! Verifique seu e-mail.', userId: user.user.id };
+        // If SMTP is configured, send the verification email
+        // Otherwise, auto-verify so the user isn't locked out
+        if (this.emailService.isSmtpConfigured) {
+            try {
+                await this.emailService.sendVerificationEmail(
+                    user.user.email,
+                    user.user.name,
+                    user.verifyToken,
+                );
+            } catch (err) {
+                this.logger.error(`Failed to send verification email: ${err.message}`);
+            }
+            return { message: 'Conta criada! Verifique seu e-mail.', userId: user.user.id };
+        } else {
+            // Auto-verify in development / when SMTP is not configured
+            await this.prisma.user.update({
+                where: { id: user.user.id },
+                data: { emailVerified: true },
+            });
+            this.logger.warn(`SMTP not configured — auto-verified email for ${user.user.email}`);
+            return { message: 'Conta criada com sucesso!', userId: user.user.id };
+        }
     }
 
     // ── VERIFY EMAIL ─────────────────────────────────────────────────
@@ -185,7 +207,12 @@ export class AuthService {
             },
         });
 
-        // TODO: Send email
+        // Send password reset email
+        try {
+            await this.emailService.sendPasswordResetEmail(user.email, user.name, token);
+        } catch (err) {
+            this.logger.error(`Failed to send password reset email: ${err.message}`);
+        }
         return { message: 'Se o e-mail existir, você receberá as instruções.' };
     }
 
