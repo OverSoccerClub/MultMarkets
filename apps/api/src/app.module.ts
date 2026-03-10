@@ -11,6 +11,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { MarketsModule } from './modules/markets/markets.module';
 import { TradingModule } from './modules/trading/trading.module';
 import { BotModule } from './modules/bot/bot.module';
+import { PixModule } from './modules/pix/pix.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { AdminModule } from './modules/admin/admin.module';
 // import { CategoriesModule } from './modules/categories/categories.module';
@@ -51,6 +52,7 @@ import { BotModule } from './modules/bot/bot.module';
         MarketsModule,
         TradingModule,
         BotModule,
+        PixModule,
     ],
 })
 export class AppModule { }

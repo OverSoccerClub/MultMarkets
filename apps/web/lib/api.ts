@@ -104,3 +104,10 @@ export const botApi = {
     // System
     runCycle: () => api.post('/bot/run').then((r) => r.data),
 };
+
+export const pixApi = {
+    deposit: (amount: number) => api.post('/pix/deposit', { amount }).then((r) => r.data),
+    withdraw: (amount: number, pixKey: string) => api.post('/pix/withdraw', { amount, pixKey }).then((r) => r.data),
+    status: (txId: string) => api.get(`/pix/status/${txId}`).then((r) => r.data),
+    transactions: (page = 1, limit = 20) => api.get('/pix/transactions', { params: { page, limit } }).then((r) => r.data),
+};
