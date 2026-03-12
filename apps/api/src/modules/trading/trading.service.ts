@@ -105,17 +105,24 @@ export class AmmEngine {
     }
 }
 
+import { SettingsService } from '../settings/settings.service';
+
 @Injectable()
 export class TradingService {
     private readonly logger = new Logger(TradingService.name);
     private readonly amm = new AmmEngine();
-    private readonly FEE_RATE = PLATFORM.TRADE_FEE_PERCENT;
 
     constructor(
         private prisma: PrismaService,
         private walletService: WalletService,
         private eventEmitter: EventEmitter2,
+        private settings: SettingsService,
     ) { }
+
+    private async getFeeRate(): Promise<number> {
+        const feeStr = await this.settings.getSetting('PLATFORM_TRADE_FEE');
+        return feeStr ? parseFloat(feeStr) : PLATFORM.TRADE_FEE_PERCENT;
+    }
 
     // ── PREVIEW TRADE ─────────────────────────────────────────────────
     async previewTrade(marketId: string, side: TradeSide, type: TradeType, amount: number) {
@@ -127,7 +134,8 @@ export class TradingService {
 
         const yesShares = Number(market.yesShares);
         const noShares = Number(market.noShares);
-        const fee = amount * this.FEE_RATE;
+        const feeRate = await this.getFeeRate();
+        const fee = amount * feeRate;
         const netAmount = amount - fee;
 
         if (type === TradeType.BUY) {
@@ -148,13 +156,13 @@ export class TradingService {
         } else {
             // SELL: amount = shares held
             const proceeds = this.amm.sellProceeds(yesShares, noShares, side, amount);
-            const netProceeds = proceeds * (1 - this.FEE_RATE);
+            const netProceeds = proceeds * (1 - feeRate);
             const newYes = side === TradeSide.YES ? yesShares - amount : yesShares;
             const newNo = side === TradeSide.NO ? noShares - amount : noShares;
 
             return {
                 side, type, shares: amount, pricePerShare: proceeds / amount,
-                totalCost: -netProceeds, fee: proceeds * this.FEE_RATE,
+                totalCost: -netProceeds, fee: proceeds * feeRate,
                 newYesPrice: this.amm.yesPrice(newYes, newNo),
                 newNoPrice: this.amm.noPrice(newYes, newNo),
                 priceImpact: 0,
@@ -352,6 +360,8 @@ export class TradingService {
             noPrice: preview.newNoPrice,
             timestamp: new Date().toISOString(),
         });
+
+        this.eventEmitter.emit('orders.updated', { userId });
 
         this.logger.log(`Trade: user=${userId} market=${marketId} ${type} ${side} $${amount}`);
         return { success: true, trade: result, preview };

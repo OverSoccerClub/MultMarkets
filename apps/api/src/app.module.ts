@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -14,6 +15,7 @@ import { BotModule } from './modules/bot/bot.module';
 import { PixModule } from './modules/pix/pix.module';
 import { GatewaysModule } from './modules/gateways/gateways.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { AdminModule } from './modules/admin/admin.module';
 // import { CategoriesModule } from './modules/categories/categories.module';
@@ -34,6 +36,9 @@ import { SettingsModule } from './modules/settings/settings.module';
 
         // ── Scheduling (cron jobs) ────────────────────────────────────
         ScheduleModule.forRoot(),
+
+        // ── Events ────────────────────────────────────────────────────
+        EventEmitterModule.forRoot(),
 
         // ── Redis Queues ──────────────────────────────────────────────
         BullModule.forRootAsync({
@@ -57,6 +62,7 @@ import { SettingsModule } from './modules/settings/settings.module';
         PixModule,
         GatewaysModule,
         SettingsModule,
+        NotificationsModule,
     ],
 })
 export class AppModule { }

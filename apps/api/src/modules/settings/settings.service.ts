@@ -1,11 +1,33 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
-export class SettingsService {
+export class SettingsService implements OnModuleInit {
     private readonly logger = new Logger(SettingsService.name);
 
     constructor(private prisma: PrismaService) {}
+
+    async onModuleInit() {
+        await this.seedDefaults();
+    }
+
+    private async seedDefaults() {
+        const defaults = [
+            {
+                key: 'PLATFORM_TRADE_FEE',
+                value: '0.02',
+                description: 'Taxa base cobrada em cada operação de compra/venda (0.02 = 2%)',
+            },
+        ];
+
+        for (const item of defaults) {
+            const existing = await this.prisma.systemConfig.findUnique({ where: { key: item.key } });
+            if (!existing) {
+                this.logger.log(`Seeding default setting: ${item.key}`);
+                await this.prisma.systemConfig.create({ data: item });
+            }
+        }
+    }
 
     async getAllSettings() {
         return this.prisma.systemConfig.findMany({

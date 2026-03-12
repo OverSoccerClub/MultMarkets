@@ -1,6 +1,7 @@
 import {
     Injectable, BadRequestException, NotFoundException, ForbiddenException, Logger,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, TransactionType, TransactionStatus } from '@prisma/client';
 
@@ -8,7 +9,10 @@ import { Prisma, TransactionType, TransactionStatus } from '@prisma/client';
 export class WalletService {
     private readonly logger = new Logger(WalletService.name);
 
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private eventEmitter: EventEmitter2,
+    ) { }
 
     async getWallet(userId: string) {
         const user = await this.prisma.user.findUniqueOrThrow({
@@ -73,6 +77,14 @@ export class WalletService {
         });
 
         this.logger.log(`Deposit: user=${userId} amount=${amount}`);
+
+        // Emit real-time update
+        this.eventEmitter.emit('wallet.updated', {
+            userId,
+            balance: Number(result.balance),
+            available: Number(result.balance) - Number(result.lockedBalance),
+        });
+
         return { message: `R$ ${amount.toFixed(2)} creditado com sucesso!`, balance: Number(result.balance) };
     }
 
@@ -150,6 +162,13 @@ export class WalletService {
                 referenceId,
             },
         });
+
+        // Emit real-time update
+        this.eventEmitter.emit('wallet.updated', {
+            userId: wallet.userId,
+            balance: Number(newBalance),
+            available: Number(newBalance) - Number(newLocked),
+        });
     }
 
     async creditPayout(walletId: string, amount: number, description: string, referenceId: string, tx: Prisma.TransactionClient) {
@@ -168,6 +187,13 @@ export class WalletService {
                 description,
                 referenceId,
             },
+        });
+
+        // Emit real-time update
+        this.eventEmitter.emit('wallet.updated', {
+            userId: wallet.userId,
+            balance: Number(newBalance),
+            available: Number(newBalance) - Number(wallet.lockedBalance),
         });
     }
 
