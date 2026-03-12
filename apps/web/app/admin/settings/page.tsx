@@ -171,27 +171,80 @@ export default function AdminSettingsPage() {
                             {gateways.map((gateway: any) => (
                                 <motion.div
                                     key={gateway.id}
-                                    className={`group relative overflow-hidden bg-black/40 backdrop-blur-xl border ${gateway.isActive ? 'border-accent-500/30 ring-1 ring-accent-500/20' : 'border-white/5'} rounded-[2.5rem] p-8`}
+                                    className={`group relative overflow-hidden bg-black/40 backdrop-blur-xl border ${gateway.isActive ? 'border-accent-500/50 ring-2 ring-accent-500/20 shadow-glow-accent' : 'border-white/5'} rounded-[2.5rem] p-8`}
                                 >
-                                    <div className="flex items-start justify-between mb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`h-12 w-12 rounded-2xl ${gateway.isActive ? 'bg-accent-500/10 text-accent-500' : 'bg-white/5 text-white/30'} border border-current/10 flex items-center justify-center shadow-inner-surface`}>
-                                                <Shield size={24} />
-                                            </div>
-                                            <div>
-                                                <h4 className="text-base font-black uppercase tracking-tight text-white">{gateway.name}</h4>
-                                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">{gateway.provider}</span>
+                                    {/* Active Indicator & Environment Badge */}
+                                    <div className="flex items-center justify-between mb-8">
+                                        <div className="flex items-center gap-3">
+                                            {gateway.isActive ? (
+                                                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent-500/10 border border-accent-500/20">
+                                                    <motion.div 
+                                                        animate={{ opacity: [1, 0.4, 1] }} 
+                                                        transition={{ repeat: Infinity, duration: 1.5 }}
+                                                        className="h-1.5 w-1.5 rounded-full bg-accent-500" 
+                                                    />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-accent-500">SISTEMA ATIVO</span>
+                                                </div>
+                                            ) : (
+                                                <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-white/20">DESATIVADO</span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                            gateway.environment === 'PRODUCTION' 
+                                                ? 'bg-green-500/10 border-green-500/20 text-green-500 shadow-[0_0_15px_-5px_rgba(34,197,94,0.3)]' 
+                                                : 'bg-orange-500/10 border-orange-500/20 text-orange-500'
+                                        }`}>
+                                            {gateway.environment === 'PRODUCTION' ? '🚀 OPERAÇÃO REAL' : '🧪 HOMOLOGAÇÃO'}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-5 mb-8">
+                                        <div className={`h-16 w-16 rounded-[1.5rem] ${gateway.isActive ? 'bg-accent-500 text-white' : 'bg-white/5 text-white/30'} border border-current/10 flex items-center justify-center shadow-inner-surface transition-all duration-500`}>
+                                            <Shield size={32} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xl font-black uppercase tracking-tight text-white mb-1">{gateway.name}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">{gateway.provider}</span>
+                                                <div className="h-1 w-1 rounded-full bg-white/10" />
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent-500/60">PIX INSTANTÂNEO</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/5">
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleEdit(gateway)} className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/5 transition-all"><Edit size={14} /></button>
-                                            <button onClick={() => confirm('Excluir?') && deleteMutation.mutate(gateway.id)} className="p-2.5 rounded-xl bg-red-500/5 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 border border-red-500/5 transition-all"><Trash2 size={14} /></button>
+                                    {/* Config Summary */}
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest block mb-1">Endpoints</span>
+                                            <span className="text-[10px] text-white/40 truncate block font-mono">
+                                                {gateway.config?.baseUrl?.includes('hom') ? 'Test Environment' : 'Live Gateway'}
+                                            </span>
                                         </div>
-                                        {!gateway.isActive && (
-                                            <button onClick={() => activateMutation.mutate(gateway.id)} className="text-[9px] font-black uppercase tracking-widest text-accent-500 px-4 py-2 rounded-lg bg-accent-500/5 hover:bg-accent-500/10 transition-all">Ativar</button>
+                                        <div className="p-3 bg-white/[0.02] border border-white/5 rounded-2xl">
+                                            <span className="text-[8px] font-black text-white/20 uppercase tracking-widest block mb-1">Gatilhamento</span>
+                                            <span className="text-[10px] text-white/40 truncate block font-mono">Autenticado v2</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
+                                        <div className="flex gap-2">
+                                            <button onClick={() => handleEdit(gateway)} className="p-3 rounded-2xl bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all"><Edit size={16} /></button>
+                                            <button onClick={() => confirm('Excluir?') && deleteMutation.mutate(gateway.id)} className="p-3 rounded-2xl bg-red-500/5 text-red-500/40 hover:text-red-500 hover:bg-red-500/10 border border-red-500/5 hover:border-red-500/20 transition-all"><Trash2 size={16} /></button>
+                                        </div>
+                                        {!gateway.isActive ? (
+                                            <button 
+                                                onClick={() => activateMutation.mutate(gateway.id)} 
+                                                className="h-12 px-8 rounded-2xl bg-accent-500 hover:bg-accent-600 text-white text-[10px] font-black uppercase tracking-widest shadow-glow-accent transition-all"
+                                            >
+                                                Assumir Controle
+                                            </button>
+                                        ) : (
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-accent-500/50 uppercase tracking-widest mr-4">
+                                                <CheckCircle2 size={14} /> Master Ativo
+                                            </div>
                                         )}
                                     </div>
                                 </motion.div>
