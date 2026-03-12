@@ -22,8 +22,10 @@ interface AuthState {
     accessToken: string | null;
     refreshToken: string | null;
     isAuthenticated: boolean;
+    _hasHydrated: boolean;
     setTokens: (accessToken: string, refreshToken: string) => void;
     setUser: (user: User) => void;
+    setHasHydrated: (state: boolean) => void;
     logout: () => void;
 }
 
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: null,
             refreshToken: null,
             isAuthenticated: false,
+            _hasHydrated: false,
             setTokens: (accessToken, refreshToken) => {
                 if (typeof window !== 'undefined') {
                     localStorage.setItem('access_token', accessToken);
@@ -42,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
                 set({ accessToken, refreshToken, isAuthenticated: true });
             },
             setUser: (user) => set({ user }),
+            setHasHydrated: (state) => set({ _hasHydrated: state }),
             logout: () => {
                 if (typeof window !== 'undefined') {
                     localStorage.removeItem('access_token');
@@ -50,7 +54,13 @@ export const useAuthStore = create<AuthState>()(
                 set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
             },
         }),
-        { name: 'multmarkets-auth', partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken, isAuthenticated: s.isAuthenticated }) },
+        { 
+            name: 'multmarkets-auth', 
+            partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken, isAuthenticated: s.isAuthenticated }),
+            onRehydrateStorage: () => (state) => {
+                state?.setHasHydrated(true);
+            }
+        },
     ),
 );
 

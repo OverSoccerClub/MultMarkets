@@ -29,16 +29,11 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user, isAuthenticated } = useAuthStore();
+    const { user, isAuthenticated, _hasHydrated } = useAuthStore();
     const [isAuthorized, setIsAuthorized] = React.useState(false);
-    const [isHydrated, setIsHydrated] = React.useState(false);
 
     React.useEffect(() => {
-        setIsHydrated(true);
-    }, []);
-
-    React.useEffect(() => {
-        if (!isHydrated) return; // Wait for zustand to restore from localStorage
+        if (!_hasHydrated) return; // Wait for zustand to restore from localStorage
 
         // Skip check if we are already on the login page
         if (pathname === '/admin/login') {
@@ -52,10 +47,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         } else {
             setIsAuthorized(true);
         }
-    }, [pathname, isAuthenticated, user, router, isHydrated]);
+    }, [pathname, isAuthenticated, user, router, _hasHydrated]);
 
     // Wait for client hydration to prevent SSR mismatch and flash
-    if (!isHydrated) {
+    if (!_hasHydrated) {
         return <div className="min-h-screen bg-black" />;
     }
 
@@ -197,17 +192,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </header>
 
                 <div className="p-10">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={pathname}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        >
-                            {children}
-                        </motion.div>
-                    </AnimatePresence>
+                    <motion.div
+                        key={pathname}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                    >
+                        {children}
+                    </motion.div>
                 </div>
             </main>
         </div>
