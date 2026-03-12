@@ -54,7 +54,7 @@ export function Navbar() {
     return (
         <header className="fixed top-0 left-0 right-0 z-[1100] flex flex-col">
             {/* Main Nav */}
-            <nav className="h-[76px] glass-2 border-b border-white/[0.05] shadow-2xl backdrop-blur-3xl">
+            <nav className="relative z-50 h-[76px] glass-2 border-b border-white/[0.05] shadow-2xl backdrop-blur-3xl">
                 <div className="mx-auto max-w-[1400px] px-6 h-full flex items-center justify-between gap-8">
 
                     {/* Left: Logo + Desktop Links */}
@@ -187,7 +187,7 @@ export function Navbar() {
 
             {/* Sub-Nav: Categories (Polymarket Style) - Hide if Admin route or Admin user */}
             {!pathname.startsWith('/admin') && user?.role !== 'ADMIN' && (
-                <div className="h-[48px] bg-black/60 backdrop-blur-3xl border-b border-white/[0.03] overflow-x-auto scrollbar-hide flex items-center">
+                <div className="relative z-40 h-[48px] bg-black/60 backdrop-blur-3xl border-b border-white/[0.03] overflow-x-auto scrollbar-hide flex items-center">
                     <div className="mx-auto max-w-[1400px] px-6 flex items-center gap-6">
                         {(() => {
                             const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
