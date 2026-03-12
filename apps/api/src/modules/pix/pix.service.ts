@@ -3,9 +3,10 @@ import {
     ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BankiziService } from '../bankizi/bankizi.service';
+import { GatewaysService } from '../gateways/gateways.service';
+import { GatewayProviderFactory } from '../gateways/gateway-provider.factory';
 import { WalletService } from '../wallet/wallet.service';
-import { TransactionType, TransactionStatus } from '@prisma/client';
+import { TransactionType, TransactionStatus, GatewayType, PixTransactionStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 @Injectable()
@@ -14,9 +15,23 @@ export class PixService {
 
     constructor(
         private prisma: PrismaService,
-        private bankizi: BankiziService,
+        private gatewaysService: GatewaysService,
+        private providerFactory: GatewayProviderFactory,
         private walletService: WalletService,
     ) { }
+
+    private async getProviderInfo() {
+        const gateway = await this.gatewaysService.getActiveGateway(GatewayType.PIX);
+        const provider = this.providerFactory.getProvider(gateway.provider);
+        
+        // Merge environment into config for the provider to know
+        const config = { 
+            ...(gateway.config as any), 
+            environment: gateway.environment 
+        };
+        
+        return { provider, config };
+    }
 
     // ── Generate unique txId ───────────────────────────────────────────
     private generateTxId(): string {
@@ -46,12 +61,13 @@ export class PixService {
         const txId = this.generateTxId();
         const amountCents = Math.round(amount * 100);
 
-        // Call Bankizi to generate QR Code
-        const bankiziResponse = await this.bankizi.createDynamicQrCode({
+        // Call active gateway provider
+        const { provider, config } = await this.getProviderInfo();
+        const response = await provider.createDeposit({
             amount: amountCents,
             txId,
             expiration: 3600, // 1 hour
-        });
+        }, config);
 
         const expiresAt = new Date(Date.now() + 3600 * 1000);
 
@@ -64,10 +80,10 @@ export class PixService {
                 amount,
                 amountCents,
                 txId,
-                bankiziTxId: bankiziResponse.transactionId || null,
-                qrCodePayload: bankiziResponse.qrCode,
+                bankiziTxId: response.transactionId || null,
+                qrCodePayload: response.qrCode,
                 expiresAt,
-                metadata: bankiziResponse as any,
+                metadata: response.metadata as any,
             },
         });
 
@@ -162,27 +178,28 @@ export class PixService {
             return pixTx;
         });
 
-        // Call Bankizi to initiate + confirm withdrawal
+        // Call active gateway provider
         try {
-            const initiateResponse = await this.bankizi.initiateWithdrawal(amountCents, txId, pixKey);
+            const { provider, config } = await this.getProviderInfo();
+            const initiateResponse = await provider.initiateWithdrawal(amountCents, txId, pixKey, config);
 
             await this.prisma.pixTransaction.update({
                 where: { txId },
                 data: {
                     bankiziTxId: initiateResponse.transactionId || null,
                     status: 'CONFIRMED',
-                    metadata: initiateResponse as any,
+                    metadata: initiateResponse.metadata as any,
                 },
             });
 
             // Step 2: Confirm withdrawal
-            const confirmResponse = await this.bankizi.confirmWithdrawal(txId);
+            const confirmResponse = await provider.confirmWithdrawal(txId, config);
 
             await this.prisma.pixTransaction.update({
                 where: { txId },
                 data: {
                     status: confirmResponse.status === 'PAID' ? 'PAID' : 'CONFIRMED',
-                    metadata: confirmResponse as any,
+                    metadata: confirmResponse.metadata as any,
                 },
             });
 
@@ -247,20 +264,19 @@ export class PixService {
         if (!pixTx) throw new NotFoundException('Transação não encontrada');
         if (pixTx.walletId !== wallet.id) throw new ForbiddenException('Acesso negado');
 
-        // Optionally sync status with Bankizi
-        if (pixTx.status === 'PENDING' || pixTx.status === 'CONFIRMED') {
+        // Optionally sync status with active gateway
+        if (pixTx.status === PixTransactionStatus.PENDING || pixTx.status === PixTransactionStatus.CONFIRMED) {
             try {
-                const bankiziStatus = pixTx.type === 'CASH_IN'
-                    ? await this.bankizi.getCashInStatus(txId)
-                    : await this.bankizi.getCashOutStatus(txId);
+                const { provider, config } = await this.getProviderInfo();
+                const statusRes = await provider.getStatus(txId, pixTx.type as 'CASH_IN' | 'CASH_OUT', config);
 
-                if (bankiziStatus.status === 'PAID' && pixTx.status !== 'PAID') {
-                    // Update if Bankizi says it's paid
+                if (statusRes.status === 'PAID') {
+                    // Update if gateway says it's paid
                     await this.handlePaymentConfirmation(txId, pixTx.type as 'CASH_IN' | 'CASH_OUT');
                     return this.prisma.pixTransaction.findUnique({ where: { txId } });
                 }
             } catch (e) {
-                this.logger.warn(`Could not sync status from Bankizi for txId=${txId}: ${e.message}`);
+                this.logger.warn(`Could not sync status from gateway for txId=${txId}: ${e.message}`);
             }
         }
 

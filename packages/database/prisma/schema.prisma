@@ -110,6 +110,17 @@ enum NotificationType {
   NEW_MARKET
 }
 
+enum GatewayType {
+  PIX
+  CARD
+}
+
+enum GatewayEnvironment {
+  SANDBOX
+  PRODUCTION
+}
+
+
 // ─── USERS ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -545,3 +556,22 @@ model Notification {
   @@index([userId, read])
   @@index([createdAt])
 }
+
+// ─── GATEWAYS ───────────────────────────────────────────────────────────────
+
+model PaymentGateway {
+  id          String             @id @default(cuid())
+  name        String
+  type        GatewayType        @default(PIX)
+  provider    String             // e.g., "BANKIZI", "SUITPAY"
+  config      Json               // Credentials and specific settings
+  isActive    Boolean            @default(false)
+  environment GatewayEnvironment @default(SANDBOX)
+  
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("payment_gateways")
+  @@index([isActive])
+}
+

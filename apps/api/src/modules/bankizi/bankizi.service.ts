@@ -42,14 +42,13 @@ interface TransactionStatusResponse {
 export class BankiziService {
     private readonly logger = new Logger(BankiziService.name);
 
-    private accessToken: string | null = null;
-    private tokenExpiresAt: number = 0;
+    private tokenCache = new Map<string, { token: string, expiresAt: number }>();
 
     constructor(
         private config: ConfigService,
         private settings: SettingsService,
     ) {
-        this.logger.log('Bankizi service initialized (lazy configuration)');
+        this.logger.log('Bankizi service initialized (multi-gateway support)');
     }
 
     private async getConfig() {
@@ -78,15 +77,13 @@ export class BankiziService {
     }
 
     // ── Authentication ─────────────────────────────────────────────────
-    private async authenticate(): Promise<string> {
-        const config = await this.ensureConfigured();
+    private async authenticate(customConfig?: any): Promise<string> {
+        const config = customConfig || await this.ensureConfigured();
+        const cacheKey = config.clientId;
 
-        // Return cached token if still valid (with 60s buffer)
-        // Ensure that token matches current environment, wait, if env changes mid-flight, cache becomes invalid!
-        // We can just clear the token if the environment changed, but for now we let it expire anyway or it will say "bad credentials".
-        // Actually, to be safe, I should store token per environment.
-        if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) {
-            return this.accessToken;
+        const cached = this.tokenCache.get(cacheKey);
+        if (cached && Date.now() < cached.expiresAt - 60_000) {
+            return cached.token;
         }
 
         this.logger.log(`Authenticating with Bankizi API (${config.environment})...`);
@@ -116,16 +113,18 @@ export class BankiziService {
         }
 
         const data: BankiziTokenResponse = await response.json();
-        this.accessToken = data.access_token;
-        this.tokenExpiresAt = Date.now() + data.expires_in * 1000;
+        this.tokenCache.set(cacheKey, {
+            token: data.access_token,
+            expiresAt: Date.now() + data.expires_in * 1000,
+        });
 
-        this.logger.log('Bankizi authentication successful');
-        return this.accessToken;
+        this.logger.log(`Bankizi authentication successful for client=${cacheKey.substring(0, 8)}...`);
+        return data.access_token;
     }
 
-    private async getHeaders(): Promise<{ headers: Record<string, string>, config: any }> {
-        const token = await this.authenticate();
-        const config = await this.getConfig();
+    private async getHeaders(customConfig?: any): Promise<{ headers: Record<string, string>, config: any }> {
+        const config = customConfig || await this.getConfig();
+        const token = await this.authenticate(config);
 
         const headers: Record<string, string> = {
             'Authorization': `Bearer ${token}`,
@@ -138,10 +137,10 @@ export class BankiziService {
     }
 
     // ── PIX Cash-In (Deposit) ──────────────────────────────────────────
-    async createDynamicQrCode(params: CreateQrCodeParams): Promise<QrCodeResponse> {
+    async createDynamicQrCode(params: CreateQrCodeParams, customConfig?: any): Promise<QrCodeResponse> {
         this.logger.log(`Creating dynamic QR code: txId=${params.txId}, amount=${params.amount} cents`);
 
-        const { headers, config } = await this.getHeaders();
+        const { headers, config } = await this.getHeaders(customConfig);
         const body: any = {
             amount: params.amount,
             expiration: params.expiration || 3600,
@@ -177,10 +176,10 @@ export class BankiziService {
     }
 
     // ── PIX Cash-Out (Withdrawal) ──────────────────────────────────────
-    async initiateWithdrawal(amount: number, txId: string, pixKey: string): Promise<WithdrawResponse> {
+    async initiateWithdrawal(amount: number, txId: string, pixKey: string, customConfig?: any): Promise<WithdrawResponse> {
         this.logger.log(`Initiating withdrawal: txId=${txId}, amount=${amount} cents, pixKey=${pixKey}`);
 
-        const { headers, config } = await this.getHeaders();
+        const { headers, config } = await this.getHeaders(customConfig);
         let response: Response;
         try {
             response = await fetch(`${config.baseUrl}/pix/withdraw/initiate/key`, {
@@ -205,10 +204,10 @@ export class BankiziService {
         return data;
     }
 
-    async confirmWithdrawal(txId: string): Promise<WithdrawResponse> {
+    async confirmWithdrawal(txId: string, customConfig?: any): Promise<WithdrawResponse> {
         this.logger.log(`Confirming withdrawal: txId=${txId}`);
 
-        const { headers, config } = await this.getHeaders();
+        const { headers, config } = await this.getHeaders(customConfig);
         let response: Response;
         try {
             response = await fetch(`${config.baseUrl}/pix/withdraw/confirm/key/${txId}`, {
@@ -233,8 +232,8 @@ export class BankiziService {
     }
 
     // ── Transaction Status Queries ─────────────────────────────────────
-    async getCashInStatus(txId: string): Promise<TransactionStatusResponse> {
-        const { headers, config } = await this.getHeaders();
+    async getCashInStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {
+        const { headers, config } = await this.getHeaders(customConfig);
         let response: Response;
         try {
             response = await fetch(`${config.baseUrl}/pix/transaction/cashin/${txId}`, {
@@ -254,8 +253,8 @@ export class BankiziService {
         return jsonRes.data || jsonRes;
     }
 
-    async getCashOutStatus(txId: string): Promise<TransactionStatusResponse> {
-        const { headers, config } = await this.getHeaders();
+    async getCashOutStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {
+        const { headers, config } = await this.getHeaders(customConfig);
         let response: Response;
         try {
             response = await fetch(`${config.baseUrl}/pix/transaction/cashout/${txId}`, {

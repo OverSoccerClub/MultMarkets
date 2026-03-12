@@ -122,5 +122,12 @@ export const adminApi = {
     getSettings: () => api.get('/settings').then((r) => r.data),
     updateSettings: (settings: { key: string; value: string; description?: string; isSecret?: boolean }[]) =>
         api.put('/settings', settings).then((r) => r.data),
+    
+    // Gateways
+    getGateways: () => api.get('/gateways').then(res => res.data),
+    createGateway: (data: any) => api.post('/gateways', data).then(res => res.data),
+    updateGateway: (id: string, data: any) => api.patch(`/gateways/${id}`, data).then(res => res.data),
+    deleteGateway: (id: string) => api.delete(`/gateways/${id}`).then(res => res.data),
+    activateGateway: (id: string) => api.patch(`/gateways/${id}/activate`).then(res => res.data),
 };
 
