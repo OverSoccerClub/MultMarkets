@@ -17,6 +17,7 @@ import {
     Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SystemVersion } from '@/components/layout/SystemVersion';
 
 const NAV_ITEMS = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -212,15 +213,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                 </header>
 
-                <div className="p-10">
+                <div className="p-10 flex-1 flex flex-col">
                     <motion.div
                         key={pathname}
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="flex-1"
                     >
                         {children}
                     </motion.div>
+                    <SystemVersion />
                 </div>
             </main>
         </div>
