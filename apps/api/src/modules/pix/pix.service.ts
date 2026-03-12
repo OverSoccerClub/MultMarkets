@@ -84,16 +84,26 @@ export class PixService {
     }
 
     // ── WITHDRAW (Cash-Out) ────────────────────────────────────────────
-    async createWithdrawal(userId: string, amount: number, pixKey: string) {
+    async createWithdrawal(userId: string, amount: number) {
         if (amount < 10) throw new BadRequestException('Saque mínimo: R$ 10,00');
 
         const user = await this.prisma.user.findUniqueOrThrow({
             where: { id: userId },
-            select: { role: true },
+            select: { role: true, cpf: true },
         });
 
         if (user.role === 'ADMIN') {
             throw new ForbiddenException('Administradores não podem realizar saques.');
+        }
+
+        if (!user.cpf) {
+            throw new BadRequestException('Você precisa cadastrar seu CPF no seu Perfil para realizar saques.');
+        }
+        
+        // Destino obrigatório é o CPF do titular
+        const pixKey = user.cpf.replace(/\D/g, ''); // Remove non-digits just in case
+        if (pixKey.length !== 11) {
+            throw new BadRequestException('CPF cadastrado inválido.');
         }
 
         const wallet = await this.prisma.wallet.findUniqueOrThrow({

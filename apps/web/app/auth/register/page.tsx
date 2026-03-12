@@ -11,9 +11,31 @@ import { Eye, EyeOff, Lock, Mail, User, AtSign, UserPlus, CheckCircle2, ShieldCh
 import { FuturisticOverlay, DataStream, LiveCandlesticks } from '@/components/layout/PremiumVisuals';
 import { useMotionValue, useTransform } from 'framer-motion';
 
+// Simple formatter functions
+const formatCPF = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length <= 11) {
+        v = v.replace(/(\d{3})(\d)/, '$1.$2');
+        v = v.replace(/(\d{3})(\d)/, '$1.$2');
+        v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    }
+    return v;
+};
+
+const formatPhone = (v: string) => {
+    v = v.replace(/\D/g, '');
+    if (v.length <= 11) {
+        v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+        v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+    }
+    return v;
+};
+
 const schema = z.object({
     name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
     username: z.string().min(3).regex(/^[a-z0-9_]+$/, 'Apenas letras minúsculas, números e _'),
+    cpf: z.string().min(11, 'Preencha o CPF'),
+    phone: z.string().min(10, 'Preencha um número válido'),
     email: z.string().email('E-mail inválido'),
     password: z.string()
         .min(8, 'Mínimo 8 caracteres')
@@ -68,9 +90,14 @@ export default function RegisterPage() {
         setLoading(true);
         setError('');
         const { confirmPassword: _, ...payload } = data;
+        
+        // Limpar máscaras antes de enviar
+        payload.cpf = payload.cpf.replace(/\D/g, '');
+        payload.phone = payload.phone.replace(/\D/g, '');
+        
         try {
-            await authApi.register(payload);
-            setSuccess(true);
+            const res = await authApi.register(payload);
+            router.push(`/auth/verify?userId=${res.data.userId}` as any);
         } catch (err: any) {
             setError(err?.response?.data?.message ?? 'Erro ao criar conta.');
         } finally {
@@ -165,12 +192,54 @@ export default function RegisterPage() {
                             </div>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* CPF */}
+                            <div>
+                                <label className="text-label text-text-muted block mb-1.5 flex justify-between">
+                                    <span>CPF</span>
+                                </label>
+                                <div className="relative">
+                                    <ShieldCheck size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                                    <input 
+                                        {...register('cpf')} 
+                                        maxLength={14}
+                                        onChange={(e) => {
+                                            e.target.value = formatCPF(e.target.value);
+                                            register('cpf').onChange(e);
+                                        }}
+                                        className="input pl-9 w-full font-mono text-sm" 
+                                        placeholder="000.000.000-00" 
+                                    />
+                                </div>
+                                {errors.cpf && <p className="text-no-400 text-tiny mt-1">{errors.cpf.message}</p>}
+                            </div>
+
+                            {/* Celular */}
+                            <div>
+                                <label className="text-label text-text-muted block mb-1.5">Celular (WhatsApp)</label>
+                                <div className="relative">
+                                    <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                                    <input 
+                                        {...register('phone')} 
+                                        maxLength={15}
+                                        onChange={(e) => {
+                                            e.target.value = formatPhone(e.target.value);
+                                            register('phone').onChange(e);
+                                        }}
+                                        className="input pl-9 w-full font-mono text-sm" 
+                                        placeholder="(11) 99999-9999" 
+                                    />
+                                </div>
+                                {errors.phone && <p className="text-no-400 text-tiny mt-1">{errors.phone.message}</p>}
+                            </div>
+                        </div>
+
                         {/* Email */}
                         <div>
                             <label className="text-label text-text-muted block mb-1.5">E-mail</label>
                             <div className="relative">
                                 <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                                <input {...register('email')} type="email" className="input pl-9 w-full" placeholder="seu@email.com" />
+                                <input {...register('email')} type="email" className="input pl-9 w-full text-sm" placeholder="seu@email.com" />
                             </div>
                             {errors.email && <p className="text-no-400 text-tiny mt-1">{errors.email.message}</p>}
                         </div>

@@ -7,10 +7,11 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
-import { randomUUID as uuid } from 'crypto';
+import { randomUUID as uuid, randomInt } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, VerifyKycDto } from './dto/auth.dto';
 import { EmailService } from '../email/email.service';
+import { SmsService } from '../email/sms.service';
 import { JWT } from '@multmarkets/shared';
 
 @Injectable()
@@ -23,18 +24,57 @@ export class AuthService {
         private jwt: JwtService,
         private config: ConfigService,
         private emailService: EmailService,
+        private smsService: SmsService,
     ) { }
+
+    // ── HELPERS ──────────────────────────────────────────────────────
+    private isValidCpf(cpf: string): boolean {
+        if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+        let sum = 0;
+        let remainder;
+        for (let i = 1; i <= 9; i++) sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.substring(9, 10))) return false;
+        sum = 0;
+        for (let i = 1; i <= 10; i++) sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+        remainder = (sum * 10) % 11;
+        if (remainder === 10 || remainder === 11) remainder = 0;
+        if (remainder !== parseInt(cpf.substring(10, 11))) return false;
+        return true;
+    }
+
+    private generateOtp(): string {
+        return randomInt(100000, 999999).toString();
+    }
 
     // ── REGISTER ─────────────────────────────────────────────────────
     async register(dto: RegisterDto) {
+        // Validação CPF
+        const cleanCpf = dto.cpf.replace(/\D/g, '');
+        if (!this.isValidCpf(cleanCpf)) {
+            throw new BadRequestException('O CPF informado é inválido. Digite um CPF real.');
+        }
+
+        // Validação Phone
+        const cleanPhone = dto.phone.replace(/\D/g, '');
+        if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+            throw new BadRequestException('Número de telefone inválido.');
+        }
+
         // Check uniqueness
         const existing = await this.prisma.user.findFirst({
-            where: { OR: [{ email: dto.email }, { username: dto.username }] },
+            where: { OR: [{ email: dto.email }, { username: dto.username }, { cpf: cleanCpf }, { phone: cleanPhone }] },
         });
-        if (existing?.email === dto.email) throw new ConflictException('E-mail já cadastrado');
-        if (existing?.username === dto.username) throw new ConflictException('Username já em uso');
+        if (existing?.email === dto.email) throw new ConflictException('E-mail já cadastrado.');
+        if (existing?.username === dto.username) throw new ConflictException('Username já em uso.');
+        if (existing?.cpf === cleanCpf) throw new ConflictException('Este CPF já possui cadastro.');
+        if (existing?.phone === cleanPhone) throw new ConflictException('Este telefone já possui cadastro.');
 
         const passwordHash = await bcrypt.hash(dto.password, this.BCRYPT_ROUNDS);
+
+        const emailCode = this.generateOtp();
+        const smsCode = this.generateOtp();
 
         const user = await this.prisma.$transaction(async (tx) => {
             const newUser = await tx.user.create({
@@ -42,7 +82,11 @@ export class AuthService {
                     name: dto.name,
                     username: dto.username.toLowerCase(),
                     email: dto.email.toLowerCase(),
+                    cpf: cleanCpf,
+                    phone: cleanPhone,
                     passwordHash,
+                    emailVerified: false,
+                    phoneVerified: false,
                 },
             });
 
@@ -53,44 +97,66 @@ export class AuthService {
                 });
             }
 
-            // Create email verification token
-            const token = this.generateSecureToken();
-            await tx.emailToken.create({
-                data: {
-                    userId: newUser.id,
-                    token,
-                    type: 'email_verify',
-                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                },
+            // Create 6-digit verification codes
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            await tx.verificationCode.createMany({
+                data: [
+                    { userId: newUser.id, code: emailCode, type: 'EMAIL_OTP', expiresAt },
+                    { userId: newUser.id, code: smsCode, type: 'SMS_OTP', expiresAt },
+                ],
             });
 
-            return { user: newUser, verifyToken: token };
+            return newUser;
         });
 
-        this.logger.log(`New user registered: ${user.user.email}`);
+        this.logger.log(`New user registered: ${user.email} - pending KYC`);
 
-        // If SMTP is configured, send the verification email
-        // Otherwise, auto-verify so the user isn't locked out
-        if (this.emailService.isSmtpConfigured) {
-            try {
-                await this.emailService.sendVerificationEmail(
-                    user.user.email,
-                    user.user.name,
-                    user.verifyToken,
-                );
-            } catch (err) {
-                this.logger.error(`Failed to send verification email: ${err.message}`);
-            }
-            return { message: 'Conta criada! Verifique seu e-mail.', userId: user.user.id };
-        } else {
-            // Auto-verify in development / when SMTP is not configured
-            await this.prisma.user.update({
-                where: { id: user.user.id },
-                data: { emailVerified: true },
-            });
-            this.logger.warn(`SMTP not configured — auto-verified email for ${user.user.email}`);
-            return { message: 'Conta criada com sucesso!', userId: user.user.id };
+        // Dispara email
+        await this.emailService.sendOtpEmail(user.email, user.name, emailCode);
+        // Dispara SMS
+        await this.smsService.sendVerificationSms(user.phone!, smsCode);
+
+        // Não retorna sessionId ou token. O usuário precisa da verificação.
+        return { message: 'Conta criada. Insira os códigos enviados para seu E-mail e Celular.', userId: user.id };
+    }
+
+    // ── VERIFY KYC (DOUBLE OTP) ──────────────────────────────────────
+    async verifyKyc(dto: VerifyKycDto) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: dto.userId },
+            include: { verificationCodes: { where: { usedAt: null, expiresAt: { gt: new Date() } } } }
+        });
+
+        if (!user) throw new NotFoundException('Usuário não encontrado.');
+        if (user.emailVerified && user.phoneVerified) {
+            throw new BadRequestException('Usuário já validado.');
         }
+
+        const emailTokens = user.verificationCodes.filter(c => c.type === 'EMAIL_OTP');
+        const smsTokens = user.verificationCodes.filter(c => c.type === 'SMS_OTP');
+
+        const validEmailCode = emailTokens.find(c => c.code === dto.emailCode);
+        const validSmsCode = smsTokens.find(c => c.code === dto.smsCode);
+
+        if (!validEmailCode) {
+            throw new BadRequestException('Código de E-mail incorreto ou expirado.');
+        }
+        if (!validSmsCode) {
+            throw new BadRequestException('Código SMS incorreto ou expirado.');
+        }
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: user.id },
+                data: { emailVerified: true, phoneVerified: true },
+            }),
+            this.prisma.verificationCode.updateMany({
+                where: { id: { in: [validEmailCode.id, validSmsCode.id] } },
+                data: { usedAt: new Date() },
+            })
+        ]);
+
+        return { message: 'Conta validada com sucesso! Você já pode fazer login.' };
     }
 
     // ── VERIFY EMAIL ─────────────────────────────────────────────────
@@ -293,6 +359,57 @@ export class AuthService {
     }
 
     // ── LOGOUT ────────────────────────────────────────────────────────
+    async getSessions(userId: string) {
+        return this.prisma.userSession.findMany({
+            where: { userId, expiresAt: { gt: new Date() } },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    // ── PROFILE UPDATE ───────────────────────────────────────────────
+    async updateProfile(userId: string, data: { cpf?: string, bio?: string, avatarUrl?: string }) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Usuário não encontrado');
+        
+        // Bloquear alteração de CPF se já existir e tentar mudar
+        if (data.cpf && user.cpf && user.cpf !== data.cpf) {
+            throw new BadRequestException('O CPF não pode ser alterado após o cadastro inicial.');
+        }
+
+        // Validação e formatação do CPF
+        if (data.cpf) {
+            const cleanCpf = data.cpf.replace(/\D/g, '');
+            if (cleanCpf.length !== 11) {
+                throw new BadRequestException('CPF inválido. Certifique-se de inserir os 11 dígitos.');
+            }
+            const existingCpf = await this.prisma.user.findUnique({ where: { cpf: cleanCpf } });
+            if (existingCpf && existingCpf.id !== userId) {
+                throw new ConflictException('Este CPF já está em uso em outra conta.');
+            }
+            data.cpf = cleanCpf;
+        }
+
+        const updatedUser = await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                ...(data.cpf && { cpf: data.cpf }),
+                ...(data.bio && { bio: data.bio }),
+                ...(data.avatarUrl && { avatarUrl: data.avatarUrl }),
+            },
+            select: {
+                id: true,
+                email: true,
+                username: true,
+                name: true,
+                cpf: true,
+                bio: true,
+                avatarUrl: true,
+            }
+        });
+
+        return { message: 'Perfil atualizado com sucesso!', user: updatedUser };
+    }
+
     async logout(sessionId: string) {
         await this.prisma.userSession.deleteMany({ where: { tokenHash: sessionId } });
         return { message: 'Sessão encerrada' };

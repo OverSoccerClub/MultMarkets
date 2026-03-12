@@ -10,6 +10,7 @@ interface User {
     email: string;
     name: string;
     username: string;
+    cpf: string | null;
     avatarUrl: string | null;
     role: string;
     emailVerified: boolean;

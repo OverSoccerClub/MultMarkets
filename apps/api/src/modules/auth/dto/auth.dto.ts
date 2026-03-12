@@ -20,6 +20,20 @@ export class RegisterDto {
     @Matches(/[A-Z]/, { message: 'Senha deve ter ao menos uma maiúscula' })
     @Matches(/[0-9]/, { message: 'Senha deve ter ao menos um número' })
     password: string;
+
+    @ApiProperty({ example: '12345678901' })
+    @IsString() @MinLength(11) @MaxLength(14)
+    cpf: string;
+
+    @ApiProperty({ example: '5511999999999' })
+    @IsString() @MinLength(10) @MaxLength(15)
+    phone: string;
+}
+
+export class VerifyKycDto {
+    @ApiProperty() @IsString() userId: string;
+    @ApiProperty() @IsString() @MinLength(6) @MaxLength(6) emailCode: string;
+    @ApiProperty() @IsString() @MinLength(6) @MaxLength(6) smsCode: string;
 }
 
 export class LoginDto {

@@ -22,11 +22,6 @@ class CreateWithdrawDto {
     @IsNumber()
     @Min(10)
     amount: number;
-
-    @ApiProperty({ description: 'Chave PIX de destino', example: 'email@exemplo.com' })
-    @IsString()
-    @MinLength(5)
-    pixKey: string;
 }
 
 @ApiTags('PIX')
@@ -48,12 +43,12 @@ export class PixController {
 
     @Post('withdraw')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Solicitar saque via PIX' })
+    @ApiOperation({ summary: 'Solicitar saque via PIX (Somente para o CPF cadastrado)' })
     async createWithdraw(
         @CurrentUser() user: any,
         @Body() dto: CreateWithdrawDto,
     ) {
-        return this.pixService.createWithdrawal(user.id, dto.amount, dto.pixKey);
+        return this.pixService.createWithdrawal(user.id, dto.amount);
     }
 
     @Get('status/:txId')

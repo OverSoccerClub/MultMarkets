@@ -55,9 +55,11 @@ api.interceptors.response.use(
 export const authApi = {
     register: (data: any) => api.post('/auth/register', data).then((r) => r.data),
     login: (data: any) => api.post('/auth/login', data).then((r) => r.data),
+    verifyKyc: (data: any) => api.post('/auth/verify-kyc', data).then((r) => r.data),
     refresh: (token: string) => api.post('/auth/refresh', { refreshToken: token }).then((r) => r.data),
     logout: () => api.post('/auth/logout').then((r) => r.data),
     me: () => api.get('/auth/me').then((r) => r.data),
+    updateProfile: (data: any) => api.patch('/auth/profile', data).then((r) => r.data),
     verifyEmail: (token: string) => api.post(`/auth/verify-email/${token}`).then((r) => r.data),
     forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }).then((r) => r.data),
     resetPassword: (token: string, password: string) => api.post('/auth/reset-password', { token, password }).then((r) => r.data),
@@ -107,7 +109,7 @@ export const botApi = {
 
 export const pixApi = {
     deposit: (amount: number) => api.post('/pix/deposit', { amount }).then((r) => r.data),
-    withdraw: (amount: number, pixKey: string) => api.post('/pix/withdraw', { amount, pixKey }).then((r) => r.data),
+    withdraw: (amount: number) => api.post('/pix/withdraw', { amount }).then((r) => r.data),
     status: (txId: string) => api.get(`/pix/status/${txId}`).then((r) => r.data),
     transactions: (page = 1, limit = 20) => api.get('/pix/transactions', { params: { page, limit } }).then((r) => r.data),
 };

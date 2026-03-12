@@ -84,6 +84,44 @@ export class EmailService {
         }
     }
 
+    async sendOtpEmail(to: string, userName: string, code: string): Promise<void> {
+        const from = this.config.get<string>('SMTP_FROM', '"MultMarkets" <noreply@multmarkets.com>');
+        const subject = 'Código de Verificação KYC — MultMarkets';
+        
+        const html = `
+            <div style="font-family: 'Segoe UI', Tahoma, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #0a0a0a; color: #f8f9fa; border-radius: 12px;">
+                <h1 style="color: #10B981; margin-bottom: 8px; font-size: 24px;">MultMarkets</h1>
+                <p style="color: #a1a1a1; margin-bottom: 24px; font-size: 14px;">Autenticação Segura</p>
+                <hr style="border: none; border-top: 1px solid #1a1a1a; margin: 16px 0;" />
+                <h2 style="font-size: 20px; margin-bottom: 16px;">Olá, ${userName}!</h2>
+                <p style="color: #a1a1a1; line-height: 1.6; font-size: 15px;">
+                    Seu código de verificação para acesso seguro à MultMarkets é:
+                </p>
+                <div style="text-align: center; margin: 32px 0;">
+                    <div style="display: inline-block; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 14px 40px; border-radius: 8px; font-weight: 800; font-size: 32px; letter-spacing: 8px;">
+                        ${code}
+                    </div>
+                </div>
+                <p style="color: #666; font-size: 13px;">Este código expira em 10 minutos.</p>
+                <hr style="border: none; border-top: 1px solid #1a1a1a; margin: 24px 0 16px;" />
+                <p style="color: #444; font-size: 12px;">
+                    Se você não solicitou este código, ignore este e-mail.
+                </p>
+            </div>
+        `;
+
+        if (this.transporter) {
+            try {
+                await this.transporter.sendMail({ from, to, subject, html });
+                this.logger.log(`OTP mail sent to ${to}`);
+            } catch (error) {
+                this.logger.error(`Failed to send OTP to ${to}: ${error.message}`);
+            }
+        } else {
+            this.logger.warn(`[DEV] EMAIL_OTP for ${to}: ${code}`);
+        }
+    }
+
     async sendPasswordResetEmail(to: string, userName: string, token: string): Promise<void> {
         const clientUrl = this.config.get<string>('CLIENT_URL', 'http://localhost:3000');
         const resetUrl = `${clientUrl}/auth/reset-password?token=${token}`;

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { walletApi, pixApi } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+import Link from 'next/link';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatBRL(value: number) {
@@ -84,10 +86,10 @@ function QrCodeDisplay({ payload }: { payload: string }) {
 // ── Main Page ──────────────────────────────────────────────────────────
 export default function WalletPage() {
     const queryClient = useQueryClient();
+    const { user } = useAuthStore();
     const [activeTab, setActiveTab] = useState<Tab>('deposit');
     const [depositAmount, setDepositAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [pixKey, setPixKey] = useState('');
     const [depositResult, setDepositResult] = useState<any>(null);
     const [pollTxId, setPollTxId] = useState<string | null>(null);
 
@@ -115,11 +117,9 @@ export default function WalletPage() {
 
     // ── PIX Withdraw mutation ────────────────────────────────────────
     const withdrawMutation = useMutation({
-        mutationFn: ({ amount, pixKey }: { amount: number; pixKey: string }) =>
-            pixApi.withdraw(amount, pixKey),
+        mutationFn: (amount: number) => pixApi.withdraw(amount),
         onSuccess: () => {
             setWithdrawAmount('');
-            setPixKey('');
             queryClient.invalidateQueries({ queryKey: ['wallet'] });
             queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
         },
@@ -156,8 +156,9 @@ export default function WalletPage() {
     const handleWithdraw = (e: React.FormEvent) => {
         e.preventDefault();
         const amount = parseFloat(withdrawAmount);
-        if (isNaN(amount) || amount < 10 || !pixKey.trim()) return;
-        withdrawMutation.mutate({ amount, pixKey: pixKey.trim() });
+        if (isNaN(amount) || amount < 10) return;
+        if (!user?.cpf) return; // Ensure CPF is available
+        withdrawMutation.mutate(amount);
     };
 
     const resetDeposit = useCallback(() => {
@@ -383,13 +384,22 @@ export default function WalletPage() {
                             <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">
                                 Chave PIX de destino
                             </label>
-                            <input
-                                type="text"
-                                placeholder="CPF, e-mail, telefone ou chave aleatória"
-                                value={pixKey}
-                                onChange={(e) => setPixKey(e.target.value)}
-                                className="input"
-                            />
+                            {user?.cpf ? (
+                                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-white/50 font-mono text-sm flex items-center justify-between">
+                                    <span>CPF Cadastrado:</span>
+                                    <strong className="text-white truncate max-w-xs">
+                                        ***.{user.cpf.substring(3, 6)}.{user.cpf.substring(6, 9)}-**
+                                    </strong>
+                                </div>
+                            ) : (
+                                <div className="p-4 rounded-xl bg-accent-500/10 border border-accent-500/30 text-accent-500 text-sm">
+                                    <p className="font-bold mb-2">⚠️ Saque Bloqueado</p>
+                                    <p className="mb-4">Você precisa registrar seu CPF no seu Perfil para liberar saques.</p>
+                                    <Link href={"/profile" as any} className="btn btn-primary btn-sm block text-center w-full">
+                                        Cadastrar CPF no Perfil
+                                    </Link>
+                                </div>
+                            )}
                         </div>
 
                         {withdrawMutation.isSuccess && (
@@ -410,7 +420,7 @@ export default function WalletPage() {
                                 withdrawMutation.isPending ||
                                 !withdrawAmount ||
                                 parseFloat(withdrawAmount) < 10 ||
-                                !pixKey.trim()
+                                !user?.cpf
                             }
                             className="btn btn-primary btn-lg w-full"
                         >

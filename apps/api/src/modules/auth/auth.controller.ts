@@ -1,11 +1,11 @@
 import {
-    Controller, Post, Get, Body, Param, Req,
+    Controller, Post, Get, Patch, Body, Param, Req,
     UseGuards, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, Verify2faDto, RefreshTokenDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, Verify2faDto, RefreshTokenDto, VerifyKycDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -22,9 +22,17 @@ export class AuthController {
     }
 
     @Post('verify-email/:token')
-    @ApiOperation({ summary: 'Verificar e-mail via token' })
+    @ApiOperation({ summary: 'Verificar e-mail via token (Legacy)' })
     verifyEmail(@Param('token') token: string) {
         return this.authService.verifyEmail(token);
+    }
+
+    @Post('verify-kyc')
+    @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 attempts per minute
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Verificar E-mail e Celular com códigos OTP' })
+    verifyKyc(@Body() dto: VerifyKycDto) {
+        return this.authService.verifyKyc(dto);
     }
 
     @Post('login')
@@ -97,5 +105,13 @@ export class AuthController {
     @ApiOperation({ summary: 'Dados do usuário autenticado' })
     me(@CurrentUser() user: any) {
         return user;
+    }
+
+    @Patch('profile')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Atualizar dados do perfil (CPF, Bio, Avatar)' })
+    updateProfile(@CurrentUser() user: any, @Body() dto: any) {
+        return this.authService.updateProfile(user.id, dto);
     }
 }
