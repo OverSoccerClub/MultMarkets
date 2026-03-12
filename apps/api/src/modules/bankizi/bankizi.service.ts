@@ -54,16 +54,16 @@ export class BankiziService {
         this.clientSecret = this.config.get<string>('BANKIZI_CLIENT_SECRET', '');
         this.accountId = this.config.get<string>('BANKIZI_ACCOUNT_ID', '');
 
-        if (!this.clientId || !this.clientSecret || !this.accountId) {
+        if (!this.clientId || !this.clientSecret) {
             this.logger.warn('⚠ Bankizi credentials not configured — PIX operations will be unavailable');
         } else {
-            this.logger.log('Bankizi service initialized');
+            this.logger.log(`Bankizi service initialized (baseUrl=${this.baseUrl}, accountId=${this.accountId || 'auto'})`);
         }
     }
 
     /** Whether Bankizi credentials are properly configured */
     get isConfigured(): boolean {
-        return !!(this.clientId && this.clientSecret && this.accountId);
+        return !!(this.clientId && this.clientSecret);
     }
 
     private ensureConfigured(): void {
@@ -113,11 +113,14 @@ export class BankiziService {
 
     private async getHeaders(): Promise<Record<string, string>> {
         const token = await this.authenticate();
-        return {
+        const headers: Record<string, string> = {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
-            'x-target-account-id': this.accountId,
         };
+        if (this.accountId) {
+            headers['x-target-account-id'] = this.accountId;
+        }
+        return headers;
     }
 
     // ── PIX Cash-In (Deposit) ──────────────────────────────────────────
