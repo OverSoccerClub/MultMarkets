@@ -217,5 +217,3 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
         </Modal>
     );
 }
-    );
-}
