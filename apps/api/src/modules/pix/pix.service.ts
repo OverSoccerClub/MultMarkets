@@ -172,8 +172,6 @@ export class PixService {
             const pixTx = await tx.pixTransaction.create({
                 data: {
                     walletId: wallet.id,
-                    type: 'CASH_IN', // Fixing typo: Cash-Out should follow the model but CASH_IN with CASH_OUT logic is often used for PIX Out in some schemas, wait let me check the enum.
-                    // Actually line 169 says 'CASH_OUT', let me keep it consistent.
                     type: 'CASH_OUT',
                     status: initialPixStatus,
                     amount,
