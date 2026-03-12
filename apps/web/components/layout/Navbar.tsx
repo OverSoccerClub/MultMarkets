@@ -61,7 +61,7 @@ export function Navbar() {
                     <div className="flex items-center gap-6 flex-shrink-0">
                         <Link href="/" className="flex items-center gap-2 group">
                             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-500 via-accent-800 to-black flex items-center justify-center shadow-glow-accent border border-white/20">
-                                <span className="text-white font-black text-base italic">M</span>
+                                <span className="text-white font-black text-base">M</span>
                             </div>
                             <span className="font-display font-black text-white text-xl hidden xl:block tracking-tighter uppercase">
                                 Mult<span className="text-accent-500">Markets</span>

@@ -123,7 +123,7 @@ export default function HomePage() {
     const rotateY = useTransform(springX, [-25, 25], [-5, 5]);
 
     return (
-        <div className={`mx-auto max-w-[1400px] px-6 ${isAuthenticated ? 'pt-28' : 'pt-36'} pb-20 space-y-12 overflow-hidden`} ref={containerRef}>
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 space-y-12" ref={containerRef}>
 
             {/* 🌲 Forest Terminal Hero (Senior Motion Redesign) - Solo mostrado se não logado */}
             <AnimatePresence>

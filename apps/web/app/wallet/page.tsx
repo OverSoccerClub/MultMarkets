@@ -171,7 +171,7 @@ export default function WalletPage() {
     const quickAmounts = [25, 50, 100, 200, 500];
 
     return (
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 pt-8 pb-20">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20">
             {/* ── Header ──────────────────────────────────────────────── */}
             <div className="mb-8">
                 <h1 className="text-3xl font-black uppercase tracking-tight">Carteira</h1>

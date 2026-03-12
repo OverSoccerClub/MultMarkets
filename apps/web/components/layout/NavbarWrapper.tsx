@@ -15,7 +15,9 @@ export function NavbarWrapper({ children }: { children: React.ReactNode }) {
     return (
         <>
             <Navbar />
-            <main className="pt-16 min-h-screen">{children}</main>
+            <main className="pt-32 min-h-screen">
+                {children}
+            </main>
         </>
     );
 }

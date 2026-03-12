@@ -60,7 +60,7 @@ export default function ProfilePage() {
 
     if (!mounted || !_hasHydrated) {
         return (
-            <div className="mx-auto max-w-4xl px-6 pt-36 pb-20 flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 flex flex-col items-center justify-center min-h-[60vh]">
                 <RefreshCw size={40} className="text-accent-500 animate-spin mb-4" />
                 <p className="text-white/20 font-black uppercase tracking-[0.3em] text-[10px]">Sincronizando Terminal...</p>
             </div>
@@ -68,11 +68,11 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="mx-auto max-w-5xl px-6 pt-36 pb-20 space-y-12">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 space-y-12">
             <header className="space-y-2">
                 <div className="flex items-center gap-3">
                     <div className="h-2 w-8 bg-accent-500 rounded-full" />
-                    <h1 className="text-4xl font-black uppercase tracking-tighter italic">Infraestrutura<span className="text-accent-500">.Perfil</span></h1>
+                    <h1 className="text-4xl font-black uppercase tracking-tighter">Infraestrutura<span className="text-accent-500">.Perfil</span></h1>
                 </div>
                 <p className="text-white/40 text-sm font-medium tracking-tight border-l border-white/10 pl-4 ml-1">
                     Gerenciamento centralizado de identidade e protocolo de segurança PIX.
@@ -87,7 +87,7 @@ export default function ProfilePage() {
                         
                         <div className="relative z-10 flex flex-col items-center text-center">
                             <div className="w-24 h-24 rounded-3xl bg-accent-950 border border-white/10 p-1 mb-6 group-hover:border-accent-500/50 transition-all duration-500 shadow-glow-accent/20">
-                                <div className="h-full w-full rounded-2xl bg-gradient-to-br from-accent-600 to-accent-900 flex items-center justify-center text-3xl font-black text-white italic">
+                                <div className="h-full w-full rounded-2xl bg-gradient-to-br from-accent-600 to-accent-900 flex items-center justify-center text-3xl font-black text-white">
                                     {user?.name?.substring(0, 2).toUpperCase() || user?.username?.substring(0,2).toUpperCase() || 'M'}
                                 </div>
                             </div>

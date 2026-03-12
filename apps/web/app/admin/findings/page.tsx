@@ -123,7 +123,7 @@ export default function AdminFindingsPage() {
                                         </h3>
                                     </div>
 
-                                    <p className="text-white/40 text-sm line-clamp-2 mb-8 flex-1 italic">
+                                    <p className="text-white/40 text-sm line-clamp-2 mb-8 flex-1">
                                         "{draft.generatedDescription.substring(0, 150)}..."
                                     </p>
 

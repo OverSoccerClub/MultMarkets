@@ -332,7 +332,7 @@ export default function AdminBotsPage() {
                                 </div>
 
                                 <div className="mt-8 flex items-center justify-between">
-                                    <span className="text-[9px] text-white/20 italic">Visto em {source.lastFetchedAt ? new Date(source.lastFetchedAt).toLocaleTimeString() : 'Nunca'}</span>
+                                    <span className="text-[9px] text-white/20">Visto em {source.lastFetchedAt ? new Date(source.lastFetchedAt).toLocaleTimeString() : 'Nunca'}</span>
                                     <a href={source.url} target="_blank" className="text-accent-400 hover:text-accent-300 transition-colors">
                                         <ExternalLink size={14} />
                                     </a>

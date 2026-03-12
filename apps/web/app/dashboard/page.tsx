@@ -59,7 +59,7 @@ export default function DashboardPage() {
     const totalInvested = positions.reduce((sum: number, p: any) => sum + (p.totalCost ?? 0), 0);
 
     return (
-        <div className="max-w-[1200px] mx-auto px-6 pt-36 pb-20 space-y-10">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 space-y-10">
             {/* Header */}
             <div>
                 <p className="text-[10px] font-black text-accent-500 uppercase tracking-widest mb-1">Seu Portfólio</p>
