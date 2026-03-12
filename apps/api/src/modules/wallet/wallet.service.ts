@@ -4,6 +4,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, TransactionType, TransactionStatus } from '@prisma/client';
+import { GatewaysService } from '../gateways/gateways.service';
 
 @Injectable()
 export class WalletService {
@@ -92,6 +93,19 @@ export class WalletService {
     async withdraw(userId: string, amount: number, pixKey: string) {
         if (amount < 10) throw new BadRequestException('Saque mínimo: R$ 10,00');
 
+        // Check active gateway environment
+        const gatewaysService = new GatewaysService(this.prisma);
+        let status = TransactionStatus.PENDING;
+        
+        try {
+            const activeGateway = await gatewaysService.getActiveGateway(TransactionType.PIX as any);
+            if (activeGateway.environment === 'SANDBOX') {
+                status = TransactionStatus.COMPLETED;
+            }
+        } catch (e) {
+            this.logger.warn('No active PIX gateway found. Defaulting to PENDING withdrawal.');
+        }
+
         await this.prisma.$transaction(async (tx) => {
             const wallet = await tx.wallet.findUniqueOrThrow({ where: { userId } });
             const available = Number(wallet.balance) - Number(wallet.lockedBalance);
@@ -107,17 +121,23 @@ export class WalletService {
                 data: {
                     walletId: wallet.id,
                     type: TransactionType.WITHDRAWAL,
-                    status: TransactionStatus.PENDING, // Admin reviews withdrawals
+                    status: status, // Auto-complete if SANDBOX
                     amount,
                     balanceBefore: Number(wallet.balance),
                     balanceAfter: newBalance,
-                    description: `Saque PIX → ${pixKey}`,
+                    description: status === TransactionStatus.COMPLETED 
+                        ? `Saque PIX Automático (Sandbox) → ${pixKey}`
+                        : `Saque PIX → ${pixKey}`,
                     metadata: { pixKey },
                 },
             });
         });
 
-        return { message: 'Solicitação de saque registrada. Processamento em até 24h.' };
+        return { 
+            message: status === TransactionStatus.COMPLETED 
+                ? 'Saque realizado com sucesso (Simulação Sandbox).' 
+                : 'Solicitação de saque registrada. Processamento em até 24h.' 
+        };
     }
 
     // ── LOCK / UNLOCK (called by TradingService) ──────────────────────

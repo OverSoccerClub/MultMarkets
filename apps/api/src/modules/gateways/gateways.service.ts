@@ -23,31 +23,45 @@ export class GatewaysService {
     }
 
     async create(data: any) {
-        return this.prisma.paymentGateway.create({
-            data: {
-                name: data.name,
-                type: data.type || GatewayType.PIX,
-                provider: data.provider,
-                config: data.config,
-                isActive: data.isActive || false,
-                environment: data.environment || GatewayEnvironment.SANDBOX,
+        return this.prisma.$transaction(async (tx) => {
+            // If setting this one as active, deactivate others of the same type
+            if (data.isActive) {
+                await tx.paymentGateway.updateMany({
+                    where: { type: data.type || GatewayType.PIX },
+                    data: { isActive: false },
+                });
             }
+
+            return tx.paymentGateway.create({
+                data: {
+                    name: data.name,
+                    type: data.type || GatewayType.PIX,
+                    provider: data.provider,
+                    config: data.config,
+                    isActive: data.isActive || false,
+                    environment: data.environment || GatewayEnvironment.SANDBOX,
+                }
+            });
         });
     }
 
     async update(id: string, data: any) {
-        // If setting this one as active, we might want to deactivate others of the same type
-        if (data.isActive) {
-            const gateway = await this.findOne(id);
-            await this.prisma.paymentGateway.updateMany({
-                where: { type: gateway.type, id: { not: id } },
-                data: { isActive: false },
-            });
-        }
+        return this.prisma.$transaction(async (tx) => {
+            // If setting this one as active, deactivate others of the same type
+            if (data.isActive) {
+                const gateway = await tx.paymentGateway.findUnique({ where: { id } });
+                if (gateway) {
+                    await tx.paymentGateway.updateMany({
+                        where: { type: gateway.type, id: { not: id } },
+                        data: { isActive: false },
+                    });
+                }
+            }
 
-        return this.prisma.paymentGateway.update({
-            where: { id },
-            data,
+            return tx.paymentGateway.update({
+                where: { id },
+                data,
+            });
         });
     }
 

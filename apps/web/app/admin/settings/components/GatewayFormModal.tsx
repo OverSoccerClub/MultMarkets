@@ -17,25 +17,43 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
     const [name, setName] = useState('');
     const [provider, setProvider] = useState('BANKIZI');
     const [environment, setEnvironment] = useState<'SANDBOX' | 'PRODUCTION'>('SANDBOX');
-    const [config, setConfig] = useState<any>({});
+    
+    // Separate states for each environment
+    const [sandboxConfig, setSandboxConfig] = useState<any>({});
+    const [productionConfig, setProductionConfig] = useState<any>({});
 
     useEffect(() => {
         if (initialData) {
             setName(initialData.name || '');
             setProvider(initialData.provider || 'BANKIZI');
             setEnvironment(initialData.environment || 'SANDBOX');
-            setConfig(initialData.config || {});
+            
+            // If the data already has environment-specific configs (or we use current env)
+            if (initialData.environment === 'PRODUCTION') {
+                setProductionConfig(initialData.config || {});
+                setSandboxConfig({}); // Or fetch if stored elsewhere
+            } else {
+                setSandboxConfig(initialData.config || {});
+                setProductionConfig({});
+            }
         } else {
             setName('');
             setProvider('BANKIZI');
             setEnvironment('SANDBOX');
-            setConfig({});
+            setSandboxConfig({});
+            setProductionConfig({});
         }
     }, [initialData, isOpen]);
 
     const handleConfigChange = (key: string, value: string) => {
-        setConfig((prev: any) => ({ ...prev, [key]: value }));
+        if (environment === 'SANDBOX') {
+            setSandboxConfig((prev: any) => ({ ...prev, [key]: value }));
+        } else {
+            setProductionConfig((prev: any) => ({ ...prev, [key]: value }));
+        }
     };
+
+    const currentConfig = environment === 'SANDBOX' ? sandboxConfig : productionConfig;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,8 +61,9 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
             name,
             provider,
             environment,
-            config,
-            type: 'PIX', // Default for now
+            config: currentConfig,
+            type: 'PIX',
+            isActive: false, // Let the user activate manually to avoid accidents
         });
     };
 
@@ -77,7 +96,7 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                     </div>
 
                     <div className="md:col-span-2 space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-white/50">Ambiente</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-white/50">Ambiente de Operação</label>
                         <div className="flex p-1 bg-black/40 border border-white/10 rounded-2xl relative">
                             <motion.div
                                 layoutId="env-bg"
@@ -98,6 +117,11 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 🚀 Produção
                             </button>
                         </div>
+                        <p className="text-[10px] text-white/30 font-medium px-2">
+                            {environment === 'SANDBOX' 
+                                ? "Modo de teste. Nenhuma transação real será processada." 
+                                : "Modo real. Atenção: Transações financeiras verdadeiras serão enviadas."}
+                        </p>
                     </div>
 
                     {provider === 'BANKIZI' && (
@@ -108,9 +132,10 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 </label>
                                 <input
                                     type="text"
-                                    value={config.baseUrl || ''}
+                                    value={currentConfig.baseUrl || ''}
                                     onChange={(e) => handleConfigChange('baseUrl', e.target.value)}
                                     placeholder={environment === 'SANDBOX' ? "https://api-hom.bankizi.com/api" : "https://api.bankizi.com.br/api"}
+                                    required
                                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent-500 transition-all outline-none"
                                 />
                             </div>
@@ -121,9 +146,10 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 </label>
                                 <input
                                     type="text"
-                                    value={config.clientId || ''}
+                                    value={currentConfig.clientId || ''}
                                     onChange={(e) => handleConfigChange('clientId', e.target.value)}
                                     placeholder="UUID do cliente"
+                                    required
                                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent-500 transition-all outline-none"
                                 />
                             </div>
@@ -134,9 +160,10 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 </label>
                                 <input
                                     type="password"
-                                    value={config.clientSecret || ''}
+                                    value={currentConfig.clientSecret || ''}
                                     onChange={(e) => handleConfigChange('clientSecret', e.target.value)}
                                     placeholder="••••••••••••••••"
+                                    required
                                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent-500 transition-all outline-none"
                                 />
                             </div>
@@ -147,7 +174,7 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 </label>
                                 <input
                                     type="text"
-                                    value={config.accountId || ''}
+                                    value={currentConfig.accountId || ''}
                                     onChange={(e) => handleConfigChange('accountId', e.target.value)}
                                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent-500 transition-all outline-none"
                                 />
@@ -159,7 +186,7 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                                 </label>
                                 <input
                                     type="password"
-                                    value={config.webhookSecret || ''}
+                                    value={currentConfig.webhookSecret || ''}
                                     onChange={(e) => handleConfigChange('webhookSecret', e.target.value)}
                                     placeholder="••••••••••••••••"
                                     className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-accent-500 transition-all outline-none"
@@ -183,10 +210,12 @@ export function GatewayFormModal({ isOpen, onClose, onSave, initialData, isLoadi
                         className="bg-accent-500 hover:bg-accent-600 px-10 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all disabled:opacity-50"
                     >
                         <Save size={16} />
-                        {initialData ? "Atualizar" : "Salvar"}
+                        {initialData ? "Atualizar Gateway" : "Cadastrar Gateway"}
                     </button>
                 </div>
             </form>
         </Modal>
+    );
+}
     );
 }
