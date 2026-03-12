@@ -20,7 +20,7 @@ export class PixService {
 
     // ── Generate unique txId ───────────────────────────────────────────
     private generateTxId(): string {
-        return `MM${Date.now()}${randomBytes(4).toString('hex').toUpperCase()}`;
+        return `MM${Date.now()}${randomBytes(5).toString('hex').toUpperCase()}`;
     }
 
     // ── DEPOSIT (Cash-In) ──────────────────────────────────────────────

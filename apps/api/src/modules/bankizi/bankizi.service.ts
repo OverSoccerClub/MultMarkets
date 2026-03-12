@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, BadGatewayException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SettingsService } from '../settings/settings.service';
 
@@ -92,16 +92,22 @@ export class BankiziService {
             client_secret: config.clientSecret,
         });
 
-        const response = await fetch(`${config.baseUrl}/auth/oauth/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: body.toString(),
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/auth/oauth/token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString(),
+            });
+        } catch (error: any) {
+            this.logger.error(`Bankizi auth fetch failed: ${error.message}`);
+            throw new BadGatewayException(`Falha de conexão com o gateway PIX: ${error.message}`);
+        }
 
         if (!response.ok) {
-            const errorText = await response.text();
-            this.logger.error(`Bankizi auth failed: ${response.status} - ${errorText}`);
-            throw new Error(`Bankizi authentication failed: ${response.status}`);
+            const err = await response.text();
+            this.logger.error(`Bankizi auth failed: ${response.status} - ${err}`);
+            throw new BadRequestException('Falha na autenticação com o gateway PIX. Verifique suas credenciais no painel.');
         }
 
         const data: BankiziTokenResponse = await response.json();
@@ -141,11 +147,17 @@ export class BankiziService {
             body.payerInfo = params.payerInfo;
         }
 
-        const response = await fetch(`${config.baseUrl}/pix/qrcode/dynamic`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/qrcode/dynamic`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body),
+            });
+        } catch (error: any) {
+            this.logger.error(`Bankizi QR code fetch failed: ${error.message}`);
+            throw new BadGatewayException(`Falha de rede ao gerar QR Code: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -153,7 +165,8 @@ export class BankiziService {
             throw new Error(`Failed to create QR code: ${response.status} - ${errorText}`);
         }
 
-        const data: QrCodeResponse = await response.json();
+        const jsonRes = await response.json();
+        const data: QrCodeResponse = jsonRes.data || jsonRes;
         this.logger.log(`QR code created: bankiziTxId=${data.transactionId}`);
         return data;
     }
@@ -163,11 +176,17 @@ export class BankiziService {
         this.logger.log(`Initiating withdrawal: txId=${txId}, amount=${amount} cents, pixKey=${pixKey}`);
 
         const { headers, config } = await this.getHeaders();
-        const response = await fetch(`${config.baseUrl}/pix/withdraw/initiate/key`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ amount, txId, pixKey }),
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/withdraw/initiate/key`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ amount, txId, pixKey }),
+            });
+        } catch (error: any) {
+            this.logger.error(`Bankizi withdraw initiate fetch failed: ${error.message}`);
+            throw new BadGatewayException(`Falha de rede ao iniciar saque: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -175,7 +194,8 @@ export class BankiziService {
             throw new Error(`Failed to initiate withdrawal: ${response.status} - ${errorText}`);
         }
 
-        const data: WithdrawResponse = await response.json();
+        const jsonRes = await response.json();
+        const data: WithdrawResponse = jsonRes.data || jsonRes;
         this.logger.log(`Withdrawal initiated: bankiziTxId=${data.transactionId}`);
         return data;
     }
@@ -184,10 +204,16 @@ export class BankiziService {
         this.logger.log(`Confirming withdrawal: txId=${txId}`);
 
         const { headers, config } = await this.getHeaders();
-        const response = await fetch(`${config.baseUrl}/pix/withdraw/confirm/key/${txId}`, {
-            method: 'PUT',
-            headers,
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/withdraw/confirm/key/${txId}`, {
+                method: 'PUT',
+                headers,
+            });
+        } catch (error: any) {
+            this.logger.error(`Bankizi withdraw confirm fetch failed: ${error.message}`);
+            throw new BadGatewayException(`Falha de rede ao confirmar saque: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -195,7 +221,8 @@ export class BankiziService {
             throw new Error(`Failed to confirm withdrawal: ${response.status} - ${errorText}`);
         }
 
-        const data: WithdrawResponse = await response.json();
+        const jsonRes = await response.json();
+        const data: WithdrawResponse = jsonRes.data || jsonRes;
         this.logger.log(`Withdrawal confirmed: status=${data.status}`);
         return data;
     }
@@ -203,47 +230,65 @@ export class BankiziService {
     // ── Transaction Status Queries ─────────────────────────────────────
     async getCashInStatus(txId: string): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders();
-        const response = await fetch(`${config.baseUrl}/pix/transaction/cashin/${txId}`, {
-            method: 'GET',
-            headers,
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/transaction/cashin/${txId}`, {
+                method: 'GET',
+                headers,
+            });
+        } catch (error: any) {
+            throw new BadGatewayException(`Falha de rede ao consultar status de depósito: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to get cash-in status: ${response.status} - ${errorText}`);
         }
 
-        return response.json();
+        const jsonRes = await response.json();
+        return jsonRes.data || jsonRes;
     }
 
     async getCashOutStatus(txId: string): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders();
-        const response = await fetch(`${config.baseUrl}/pix/transaction/cashout/${txId}`, {
-            method: 'GET',
-            headers,
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/transaction/cashout/${txId}`, {
+                method: 'GET',
+                headers,
+            });
+        } catch (error: any) {
+            throw new BadGatewayException(`Falha de rede ao consultar status de saque: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to get cash-out status: ${response.status} - ${errorText}`);
         }
 
-        return response.json();
+        const jsonRes = await response.json();
+        return jsonRes.data || jsonRes;
     }
 
     // ── Balance ────────────────────────────────────────────────────────
     async getConsolidatedBalance(): Promise<any> {
         const { headers, config } = await this.getHeaders();
-        const response = await fetch(`${config.baseUrl}/balances/consolidated`, {
-            method: 'GET',
-            headers,
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/balances/consolidated`, {
+                method: 'GET',
+                headers,
+            });
+        } catch (error: any) {
+             throw new BadGatewayException(`Falha de rede ao consultar saldo do gateway: ${error.message}`);
+        }
 
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Failed to get balance: ${response.status} - ${errorText}`);
         }
 
-        return response.json();
+        const jsonRes = await response.json();
+        return jsonRes.data || jsonRes;
     }
 }
