@@ -56,6 +56,7 @@ import { SettingsModule } from './modules/settings/settings.module';
         BotModule,
         PixModule,
         GatewaysModule,
+        SettingsModule,
     ],
 })
 export class AppModule { }
