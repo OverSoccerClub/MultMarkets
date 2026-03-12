@@ -173,12 +173,15 @@ export default function WalletPage() {
     return (
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20">
             {/* ── Header ──────────────────────────────────────────────── */}
-            <div className="mb-8">
-                <h1 className="text-3xl font-black uppercase tracking-tight">Carteira</h1>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                    Gerencie seus depósitos e saques via PIX
+            <header className="mb-12 space-y-2">
+                <div className="flex items-center gap-3">
+                    <div className="h-2 w-8 bg-accent-500 rounded-full" />
+                    <h1 className="text-4xl font-black uppercase tracking-tighter">Financeiro<span className="text-accent-500">.Carteira</span></h1>
+                </div>
+                <p className="text-white/40 text-sm font-medium tracking-tight border-l border-white/10 pl-4 ml-1">
+                    Gestão centralizada de fundos, depósitos e saques instantâneos via PIX.
                 </p>
-            </div>
+            </header>
 
             {/* ── Balance Card ─────────────────────────────────────────── */}
             <div className="market-card p-6 mb-8">

@@ -52,13 +52,17 @@ export default function OrdersPage() {
     if (!mounted || !isAuthenticated) return null;
 
     return (
-        <div className="max-w-[1100px] mx-auto px-6 pt-36 pb-20 space-y-10">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 space-y-10">
             {/* Header */}
-            <div>
-                <p className="text-[10px] font-black text-accent-500 uppercase tracking-widest mb-1">Histórico</p>
-                <h1 className="text-4xl font-black tracking-tight">Minhas Operações</h1>
-                <p className="text-white/30 mt-2 text-sm">Todas as suas posições abertas nos mercados preditivos.</p>
-            </div>
+            <header className="mb-12 space-y-2">
+                <div className="flex items-center gap-3">
+                    <div className="h-2 w-8 bg-accent-500 rounded-full" />
+                    <h1 className="text-4xl font-black uppercase tracking-tighter">Protocolo<span className="text-accent-500">.Ordens</span></h1>
+                </div>
+                <p className="text-white/40 text-sm font-medium tracking-tight border-l border-white/10 pl-4 ml-1">
+                    Histórico de execuções e posições estratégicas em mercados ativos.
+                </p>
+            </header>
 
             {/* Summary pills */}
             <div className="flex items-center gap-4 flex-wrap">
