@@ -1,5 +1,4 @@
-'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { authApi } from '@/lib/api';
@@ -7,7 +6,7 @@ import { CheckCircle2, ShieldCheck, Mail, Smartphone } from 'lucide-react';
 import { FuturisticOverlay, DataStream, LiveCandlesticks } from '@/components/layout/PremiumVisuals';
 import Link from 'next/link';
 
-export default function VerifyKycPage() {
+function VerifyKycContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const userId = searchParams.get('userId');
@@ -140,5 +139,13 @@ export default function VerifyKycPage() {
                 </div>
             </motion.div>
         </div>
+    );
+}
+
+export default function VerifyKycPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white">Carregando...</div>}>
+            <VerifyKycContent />
+        </Suspense>
     );
 }
