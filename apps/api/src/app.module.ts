@@ -12,6 +12,7 @@ import { MarketsModule } from './modules/markets/markets.module';
 import { TradingModule } from './modules/trading/trading.module';
 import { BotModule } from './modules/bot/bot.module';
 import { PixModule } from './modules/pix/pix.module';
+import { SettingsModule } from './modules/settings/settings.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { AdminModule } from './modules/admin/admin.module';
 // import { CategoriesModule } from './modules/categories/categories.module';

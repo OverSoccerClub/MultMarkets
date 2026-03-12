@@ -428,6 +428,27 @@ model BotSource {
   @@map("bot_sources")
 }
 
+// Tracks the current progress of admin bot logic
+model BotProgress {
+  id             String   @id @default(cuid())
+  currentUrl     String   @unique
+  processedCount Int      @default(0)
+  totalCount     Int      @default(0)
+  lastUpdated    DateTime @updatedAt
+  status         String   @default("idle") // "idle", "running", "error"
+}
+
+// ─── SYSTEM CONFIGURATION ────────────────────────────────────────────────────
+
+// Stores dynamic system settings like Gateway credentials
+model SystemConfig {
+  key         String   @id // e.g., 'BANKIZI_CLIENT_ID'
+  value       String   @db.Text
+  description String?
+  isSecret    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+}
+
 model BotTopic {
   id             String      @id @default(cuid())
   sourceId       String?

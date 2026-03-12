@@ -1,5 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SettingsService } from '../settings/settings.service';
 
 interface BankiziTokenResponse {
     access_token: string;
@@ -40,43 +41,43 @@ interface TransactionStatusResponse {
 @Injectable()
 export class BankiziService {
     private readonly logger = new Logger(BankiziService.name);
-    private readonly baseUrl: string;
-    private readonly clientId: string;
-    private readonly clientSecret: string;
-    private readonly accountId: string;
 
     private accessToken: string | null = null;
     private tokenExpiresAt: number = 0;
 
-    constructor(private config: ConfigService) {
-        this.baseUrl = this.config.get<string>('BANKIZI_BASE_URL', 'https://api-sandbox.bankizi.com.br');
-        this.clientId = this.config.get<string>('BANKIZI_CLIENT_ID', '');
-        this.clientSecret = this.config.get<string>('BANKIZI_CLIENT_SECRET', '');
-        this.accountId = this.config.get<string>('BANKIZI_ACCOUNT_ID', '');
-
-        if (!this.clientId || !this.clientSecret) {
-            this.logger.warn('⚠ Bankizi credentials not configured — PIX operations will be unavailable');
-        } else {
-            this.logger.log(`Bankizi service initialized (baseUrl=${this.baseUrl}, accountId=${this.accountId || 'auto'})`);
-        }
+    constructor(
+        private config: ConfigService,
+        private settings: SettingsService,
+    ) {
+        this.logger.log('Bankizi service initialized (lazy configuration)');
     }
 
-    /** Whether Bankizi credentials are properly configured */
-    get isConfigured(): boolean {
-        return !!(this.clientId && this.clientSecret);
+    private async getConfig() {
+        // Try getting from DB first via SettingsService
+        const dbConfig = await this.settings.getBankiziConfig();
+
+        // Fallback to environment variables
+        const baseUrl = dbConfig.baseUrl || this.config.get<string>('BANKIZI_BASE_URL', 'https://api-sandbox.bankizi.com.br');
+        const clientId = dbConfig.clientId || this.config.get<string>('BANKIZI_CLIENT_ID', '');
+        const clientSecret = dbConfig.clientSecret || this.config.get<string>('BANKIZI_CLIENT_SECRET', '');
+        const accountId = dbConfig.accountId || this.config.get<string>('BANKIZI_ACCOUNT_ID', '');
+
+        return { baseUrl, clientId, clientSecret, accountId };
     }
 
-    private ensureConfigured(): void {
-        if (!this.isConfigured) {
+    private async ensureConfigured() {
+        const config = await this.getConfig();
+        if (!config.clientId || !config.clientSecret) {
             throw new BadRequestException(
-                'Gateway PIX não configurado. Entre em contato com o suporte.',
+                'Gateway PIX não configurado. Adicione as credenciais no painel de administração (Configurações do Gateway).',
             );
         }
+        return config;
     }
 
     // ── Authentication ─────────────────────────────────────────────────
     private async authenticate(): Promise<string> {
-        this.ensureConfigured();
+        const config = await this.ensureConfigured();
 
         // Return cached token if still valid (with 60s buffer)
         if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) {
@@ -87,11 +88,11 @@ export class BankiziService {
 
         const body = new URLSearchParams({
             grant_type: 'client_credentials',
-            client_id: this.clientId,
-            client_secret: this.clientSecret,
+            client_id: config.clientId,
+            client_secret: config.clientSecret,
         });
 
-        const response = await fetch(`${this.baseUrl}/auth/oauth/token`, {
+        const response = await fetch(`${config.baseUrl}/auth/oauth/token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: body.toString(),
@@ -111,23 +112,25 @@ export class BankiziService {
         return this.accessToken;
     }
 
-    private async getHeaders(): Promise<Record<string, string>> {
+    private async getHeaders(): Promise<{ headers: Record<string, string>, config: any }> {
         const token = await this.authenticate();
+        const config = await this.getConfig();
+
         const headers: Record<string, string> = {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         };
-        if (this.accountId) {
-            headers['x-target-account-id'] = this.accountId;
+        if (config.accountId) {
+            headers['x-target-account-id'] = config.accountId;
         }
-        return headers;
+        return { headers, config };
     }
 
     // ── PIX Cash-In (Deposit) ──────────────────────────────────────────
     async createDynamicQrCode(params: CreateQrCodeParams): Promise<QrCodeResponse> {
         this.logger.log(`Creating dynamic QR code: txId=${params.txId}, amount=${params.amount} cents`);
 
-        const headers = await this.getHeaders();
+        const { headers, config } = await this.getHeaders();
         const body: any = {
             amount: params.amount,
             expiration: params.expiration || 3600,
@@ -138,7 +141,7 @@ export class BankiziService {
             body.payerInfo = params.payerInfo;
         }
 
-        const response = await fetch(`${this.baseUrl}/pix/qrcode/dynamic`, {
+        const response = await fetch(`${config.baseUrl}/pix/qrcode/dynamic`, {
             method: 'POST',
             headers,
             body: JSON.stringify(body),
@@ -159,8 +162,8 @@ export class BankiziService {
     async initiateWithdrawal(amount: number, txId: string, pixKey: string): Promise<WithdrawResponse> {
         this.logger.log(`Initiating withdrawal: txId=${txId}, amount=${amount} cents, pixKey=${pixKey}`);
 
-        const headers = await this.getHeaders();
-        const response = await fetch(`${this.baseUrl}/pix/withdraw/initiate/key`, {
+        const { headers, config } = await this.getHeaders();
+        const response = await fetch(`${config.baseUrl}/pix/withdraw/initiate/key`, {
             method: 'POST',
             headers,
             body: JSON.stringify({ amount, txId, pixKey }),
@@ -180,8 +183,8 @@ export class BankiziService {
     async confirmWithdrawal(txId: string): Promise<WithdrawResponse> {
         this.logger.log(`Confirming withdrawal: txId=${txId}`);
 
-        const headers = await this.getHeaders();
-        const response = await fetch(`${this.baseUrl}/pix/withdraw/confirm/key/${txId}`, {
+        const { headers, config } = await this.getHeaders();
+        const response = await fetch(`${config.baseUrl}/pix/withdraw/confirm/key/${txId}`, {
             method: 'PUT',
             headers,
         });
@@ -199,8 +202,8 @@ export class BankiziService {
 
     // ── Transaction Status Queries ─────────────────────────────────────
     async getCashInStatus(txId: string): Promise<TransactionStatusResponse> {
-        const headers = await this.getHeaders();
-        const response = await fetch(`${this.baseUrl}/pix/transaction/cashin/${txId}`, {
+        const { headers, config } = await this.getHeaders();
+        const response = await fetch(`${config.baseUrl}/pix/transaction/cashin/${txId}`, {
             method: 'GET',
             headers,
         });
@@ -214,8 +217,8 @@ export class BankiziService {
     }
 
     async getCashOutStatus(txId: string): Promise<TransactionStatusResponse> {
-        const headers = await this.getHeaders();
-        const response = await fetch(`${this.baseUrl}/pix/transaction/cashout/${txId}`, {
+        const { headers, config } = await this.getHeaders();
+        const response = await fetch(`${config.baseUrl}/pix/transaction/cashout/${txId}`, {
             method: 'GET',
             headers,
         });
@@ -230,8 +233,8 @@ export class BankiziService {
 
     // ── Balance ────────────────────────────────────────────────────────
     async getConsolidatedBalance(): Promise<any> {
-        const headers = await this.getHeaders();
-        const response = await fetch(`${this.baseUrl}/balances/consolidated`, {
+        const { headers, config } = await this.getHeaders();
+        const response = await fetch(`${config.baseUrl}/balances/consolidated`, {
             method: 'GET',
             headers,
         });

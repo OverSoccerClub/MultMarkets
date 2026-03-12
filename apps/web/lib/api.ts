@@ -111,3 +111,10 @@ export const pixApi = {
     status: (txId: string) => api.get(`/pix/status/${txId}`).then((r) => r.data),
     transactions: (page = 1, limit = 20) => api.get('/pix/transactions', { params: { page, limit } }).then((r) => r.data),
 };
+
+export const adminApi = {
+    getSettings: () => api.get('/settings').then((r) => r.data),
+    updateSettings: (settings: { key: string; value: string; description?: string; isSecret?: boolean }[]) =>
+        api.put('/settings', settings).then((r) => r.data),
+};
+

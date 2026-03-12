@@ -7,7 +7,8 @@ import { useAuthStore } from '@/lib/store';
 import {
     LayoutDashboard,
     Bot,
-    Settings,
+    Settings as SettingsIcon,
+    Sliders,
     Search,
     LogOut,
     ChevronRight,
@@ -19,9 +20,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const NAV_ITEMS = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-    { name: 'Fontes dos Bots', href: '/admin/bots', icon: Settings },
+    { name: 'Fontes dos Bots', href: '/admin/bots', icon: SettingsIcon },
     { name: 'Descobertas AI', href: '/admin/findings', icon: Bot },
     { name: 'Mercados', href: '/admin/markets', icon: Search },
+    { name: 'Configurações', href: '/admin/settings', icon: Sliders },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
