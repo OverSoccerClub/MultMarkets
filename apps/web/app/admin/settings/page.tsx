@@ -5,9 +5,11 @@ import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api';
 import { Save, Shield, Key, Link as LinkIcon, RefreshCw, EyeOff, Eye } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AdminSettingsPage() {
     const queryClient = useQueryClient();
+    const { success, error: toastError } = useToast();
     
     // Form states
     const [baseUrl, setBaseUrl] = useState('');
@@ -41,11 +43,11 @@ export default function AdminSettingsPage() {
         mutationFn: (newSettings: any[]) => adminApi.updateSettings(newSettings),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-settings'] });
-            alert('Configurações salvas com sucesso!');
+            success('Sucesso', 'Configurações salvas com sucesso!');
         },
         onError: (err) => {
             console.error('Failed to save settings', err);
-            alert('Erro ao salvar configurações.');
+            toastError('Erro', 'Não foi possível salvar as configurações.');
         }
     });
 
