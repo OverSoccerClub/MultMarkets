@@ -2,7 +2,6 @@ import fs from 'fs';
 
 async function test() {
   try {
-    console.log('Authenticating...');
     const authRes = await fetch('https://api-hom.bankizi.com/api/auth/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -13,26 +12,29 @@ async function test() {
       }).toString()
     });
     
-    console.log('Auth status:', authRes.status);
     const authData = await authRes.json();
-    console.log('Token received:', !!authData.access_token);
+    const token = authData.access_token;
     
-    if (authData.access_token) {
-        console.log('Generating QR Code...');
-        const qrRes = await fetch('https://api-hom.bankizi.com/api/pix/qrcode/dynamic', {
+    if (token) {
+        console.log('Initiating...');
+        const dynTxId = 'MM' + Date.now() + 'ABCDEFGHIJ';
+        const initRes = await fetch('https://api-hom.bankizi.com/api/pix/withdraw/initiate/key', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authData.access_token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                amount: 5000,
-                expiration: 3600,
-                transactionId: 'TESTE' + Date.now()
-            })
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: 5000, txId: dynTxId, pixKey: 'teste@bankizi.com' })
         });
-        console.log('QR Code status:', qrRes.status);
-        console.log('QR Code body:', await qrRes.text());
+        const initBody = await initRes.json();
+        console.log('Init Status:', initRes.status);
+        
+        if (initBody.success) {
+            console.log('Confirming...');
+            const confRes = await fetch(`https://api-hom.bankizi.com/api/pix/withdraw/confirm/key/${dynTxId}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            console.log('Conf Status by TransactionId (PUT):', confRes.status);
+            console.log('Conf Body:', await confRes.text());
+        }
     }
   } catch (e) {
     console.error(e);
