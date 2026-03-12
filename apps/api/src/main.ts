@@ -29,21 +29,39 @@ async function bootstrap() {
         'http://localhost:19006',
         'https://www.multmarkets.com',
         'https://multmarkets.com',
-        'https://mult-markets-plataforma-web.ptehea.easypanel.host'
+        'https://mult-markets-plataforma-web.ptehea.easypanel.host',
+        'https://mult-markets-api.ptehea.easypanel.host'
     ];
 
     app.enableCors({
         origin: (origin, callback) => {
             // Allow requests with no origin (like mobile apps or curl requests)
             if (!origin) return callback(null, true);
-            if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
+            
+            // Check if origin is in the allowed list or is a localhost/loopback
+            const isAllowed = allowedOrigins.includes(origin) || 
+                             origin.includes('localhost') || 
+                             origin.includes('127.0.0.1');
+
+            if (isAllowed) {
                 callback(null, true);
             } else {
+                logger.warn(`CORS blocked for origin: ${origin}`);
                 callback(new Error('Not allowed by CORS'));
             }
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+            'Origin',
+            'X-Requested-With',
+            'Content-Type',
+            'Accept',
+            'Authorization',
+            'x-apollo-operation-name',
+            'apollo-require-preflight',
+        ],
+        exposedHeaders: ['Authorization'],
     });
 
     // ── Global prefix ─────────────────────────────────────────────────
