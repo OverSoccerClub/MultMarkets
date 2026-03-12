@@ -267,8 +267,82 @@ export class TradingService {
                 });
 
                 return trade;
+            } else {
+                // SELL: Convert shares back to currency
+                const position = await tx.position.findUnique({
+                    where: { userId_marketId_side: { userId, marketId, side } }
+                });
+
+                if (!position || Number(position.shares) < amount) {
+                    throw new BadRequestException('Saldo de cotas insuficiente para esta operação.');
+                }
+
+                // Credit wallet
+                const proceeds = preview.totalCost * -1; // totalCost is negative for SELL in preview
+                await this.walletService.creditPayout(
+                    wallet.id, proceeds,
+                    `Venda ${side} em "${market.title}"`,
+                    marketId, tx as any,
+                );
+
+                // Update AMM state
+                const newYesShares = side === TradeSide.YES
+                    ? Number(market.yesShares) - amount
+                    : Number(market.yesShares);
+                const newNoShares = side === TradeSide.NO
+                    ? Number(market.noShares) - amount
+                    : Number(market.noShares);
+
+                await tx.market.update({
+                    where: { id: marketId },
+                    data: {
+                        yesShares: newYesShares,
+                        noShares: newNoShares,
+                        yesPrice: this.amm.yesPrice(newYesShares, newNoShares),
+                        noPrice: this.amm.noPrice(newYesShares, newNoShares),
+                        totalVolume: { increment: proceeds },
+                    },
+                });
+
+                // Update position
+                const totalShares = Number(position.shares) - amount;
+                if (totalShares <= 0) {
+                    await tx.position.delete({ where: { id: position.id } });
+                } else {
+                    await tx.position.update({
+                        where: { id: position.id },
+                        data: {
+                            shares: totalShares,
+                        },
+                    });
+                }
+
+                // Record trade
+                const trade = await tx.trade.create({
+                    data: {
+                        userId, marketId,
+                        type: TradeType.SELL, side,
+                        shares: amount,
+                        price: preview.pricePerShare,
+                        totalCost: proceeds,
+                        fee: preview.fee,
+                        yesPriceAfter: preview.newYesPrice,
+                        noPriceAfter: preview.newNoPrice,
+                    },
+                });
+
+                // Record price snapshot
+                await tx.marketPricePoint.create({
+                    data: {
+                        marketId,
+                        yesPrice: preview.newYesPrice,
+                        noPrice: preview.newNoPrice,
+                        volume: proceeds,
+                    },
+                });
+
+                return trade;
             }
-            // SELL logic (symmetric — omitted for brevity, same pattern reversed)
         });
 
         // Emit WebSocket event

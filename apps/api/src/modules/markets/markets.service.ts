@@ -114,19 +114,33 @@ export class MarketsService {
 
     async create(data: any) {
         const slug = this.generateSlug(data.title);
-        const market = await this.prisma.market.create({
-            data: {
-                ...data,
-                slug,
-                status: MarketStatus.ACTIVE,
-                yesPrice: 0.5,
-                noPrice: 0.5,
-                yesShares: 1000,
-                noShares: 1000,
-            },
-            include: { category: { select: { id: true, name: true, slug: true, icon: true, color: true } } },
+        
+        return this.prisma.$transaction(async (tx) => {
+            const market = await tx.market.create({
+                data: {
+                    ...data,
+                    slug,
+                    status: MarketStatus.ACTIVE,
+                    yesPrice: 0.5,
+                    noPrice: 0.5,
+                    yesShares: 1000,
+                    noShares: 1000,
+                },
+                include: { category: { select: { id: true, name: true, slug: true, icon: true, color: true } } },
+            });
+
+            // Create initial price point
+            await tx.marketPricePoint.create({
+                data: {
+                    marketId: market.id,
+                    yesPrice: 0.5,
+                    noPrice: 0.5,
+                    volume: 0,
+                }
+            });
+
+            return this.formatMarket(market, true);
         });
-        return this.formatMarket(market, true);
     }
 
     private formatMarket(market: any, detailed = false) {
