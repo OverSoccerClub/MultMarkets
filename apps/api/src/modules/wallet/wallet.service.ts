@@ -95,10 +95,10 @@ export class WalletService {
 
         // Check active gateway environment
         const gatewaysService = new GatewaysService(this.prisma);
-        let status = TransactionStatus.PENDING;
+        let status: TransactionStatus = TransactionStatus.PENDING;
         
         try {
-            const activeGateway = await gatewaysService.getActiveGateway(TransactionType.PIX as any);
+            const activeGateway = await gatewaysService.getActiveGateway('PIX' as any);
             if (activeGateway.environment === 'SANDBOX') {
                 status = TransactionStatus.COMPLETED;
             }
