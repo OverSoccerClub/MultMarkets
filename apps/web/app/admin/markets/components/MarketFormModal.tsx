@@ -30,10 +30,11 @@ export function MarketFormModal({ isOpen, onClose, onSuccess, initialData }: Mar
 
     const { data: categoriesData } = useQuery({
         queryKey: ['admin-categories'],
-        queryFn: () => botApi.getTopics(),
+        queryFn: () => marketsApi.getCategories(),
     });
-
-    const categories = categoriesData || [];
+    
+    // Safety check: ensure categories is always an array
+    const categories = Array.isArray(categoriesData) ? categoriesData : (categoriesData?.items || []);
 
     useEffect(() => {
         if (initialData) {

@@ -77,6 +77,7 @@ export const marketsApi = {
     update: (id: string, data: any) => api.patch(`/markets/${id}`, data).then((r) => r.data),
     delete: (id: string) => api.delete(`/markets/${id}`).then((r) => r.data),
     resolve: (id: string, outcome: 'YES' | 'NO' | 'CANCELLED') => api.post(`/markets/${id}/resolve`, { outcome }).then((r) => r.data),
+    getCategories: () => api.get('/markets/categories').then((r) => r.data),
 };
 
 export const walletApi = {

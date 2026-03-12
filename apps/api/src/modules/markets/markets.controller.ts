@@ -15,6 +15,12 @@ export class MarketsController {
         private readonly tradingService: TradingService
     ) { }
 
+    @Get('categories')
+    @ApiOperation({ summary: 'Listar todas as categorias ativas' })
+    async getCategories() {
+        return this.marketsService.findAllCategories();
+    }
+
     @Get()
     @ApiOperation({ summary: 'Listar mercados (com filtros e paginação)' })
     findAll(

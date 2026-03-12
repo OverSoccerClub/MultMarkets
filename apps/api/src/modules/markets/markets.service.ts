@@ -8,6 +8,13 @@ export class MarketsService {
     private readonly logger = new Logger(MarketsService.name);
 
     constructor(private prisma: PrismaService) { }
+    
+    async findAllCategories() {
+        return this.prisma.category.findMany({
+            where: { active: true },
+            orderBy: { order: 'asc' },
+        });
+    }
 
     async findAll(query: {
         page?: number; limit?: number; categorySlug?: string;
