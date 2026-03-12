@@ -5,6 +5,7 @@ import {
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { PixService } from './pix.service';
+import { SettingsService } from '../settings/settings.service';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -15,8 +16,8 @@ export class WebhookController {
     constructor(
         private pixService: PixService,
         private config: ConfigService,
+        private settings: SettingsService,
     ) {
-        this.webhookSecret = this.config.get<string>('BANKIZI_WEBHOOK_SECRET', '');
     }
 
     @Post('bankizi')
@@ -26,8 +27,13 @@ export class WebhookController {
         @Body() body: any,
         @Headers('x-webhook-secret') headerSecret?: string,
     ) {
+        // Fetch webhook secret dynamically from DB based on active environment (Sandbox vs Prod)
+        const bankiziConfig = await this.settings.getBankiziConfig();
+        const envPrefix = bankiziConfig.environment === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
+        const webhookSecret = bankiziConfig.webhookSecret || this.config.get<string>(`${envPrefix}WEBHOOK_SECRET`, '');
+
         // Basic webhook secret validation (if configured)
-        if (this.webhookSecret && headerSecret !== this.webhookSecret) {
+        if (webhookSecret && headerSecret !== webhookSecret) {
             this.logger.warn('Webhook rejected: invalid secret');
             throw new BadRequestException('Invalid webhook secret');
         }

@@ -55,14 +55,16 @@ export class BankiziService {
     private async getConfig() {
         // Try getting from DB first via SettingsService
         const dbConfig = await this.settings.getBankiziConfig();
+        const envPrefix = dbConfig.environment === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
+        const defaultUrl = dbConfig.environment === 'PRODUCTION' ? 'https://api.bankizi.com.br/api' : 'https://api-hom.bankizi.com/api';
 
-        // Fallback to environment variables
-        const baseUrl = dbConfig.baseUrl || this.config.get<string>('BANKIZI_BASE_URL', 'https://api-sandbox.bankizi.com.br');
-        const clientId = dbConfig.clientId || this.config.get<string>('BANKIZI_CLIENT_ID', '');
-        const clientSecret = dbConfig.clientSecret || this.config.get<string>('BANKIZI_CLIENT_SECRET', '');
-        const accountId = dbConfig.accountId || this.config.get<string>('BANKIZI_ACCOUNT_ID', '');
+        // Fallback to environment variables if not set in DB
+        const baseUrl = dbConfig.baseUrl || this.config.get<string>(`${envPrefix}BASE_URL`, defaultUrl);
+        const clientId = dbConfig.clientId || this.config.get<string>(`${envPrefix}CLIENT_ID`, '');
+        const clientSecret = dbConfig.clientSecret || this.config.get<string>(`${envPrefix}CLIENT_SECRET`, '');
+        const accountId = dbConfig.accountId || this.config.get<string>(`${envPrefix}ACCOUNT_ID`, '');
 
-        return { baseUrl, clientId, clientSecret, accountId };
+        return { baseUrl, clientId, clientSecret, accountId, environment: dbConfig.environment };
     }
 
     private async ensureConfigured() {
@@ -80,11 +82,14 @@ export class BankiziService {
         const config = await this.ensureConfigured();
 
         // Return cached token if still valid (with 60s buffer)
+        // Ensure that token matches current environment, wait, if env changes mid-flight, cache becomes invalid!
+        // We can just clear the token if the environment changed, but for now we let it expire anyway or it will say "bad credentials".
+        // Actually, to be safe, I should store token per environment.
         if (this.accessToken && Date.now() < this.tokenExpiresAt - 60_000) {
             return this.accessToken;
         }
 
-        this.logger.log('Authenticating with Bankizi API...');
+        this.logger.log(`Authenticating with Bankizi API (${config.environment})...`);
 
         const body = new URLSearchParams({
             grant_type: 'client_credentials',

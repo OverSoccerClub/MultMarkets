@@ -46,12 +46,16 @@ export class SettingsService {
     }
 
     async getBankiziConfig() {
-        // Helper to get Bankizi config specifically
-        const baseUrl = await this.getSetting('BANKIZI_BASE_URL');
-        const clientId = await this.getSetting('BANKIZI_CLIENT_ID');
-        const clientSecret = await this.getSetting('BANKIZI_CLIENT_SECRET');
-        const accountId = await this.getSetting('BANKIZI_ACCOUNT_ID');
+        // Retrieve the master environment toggle
+        const environment = await this.getSetting('BANKIZI_ENVIRONMENT') || 'SANDBOX';
+        const prefix = environment === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
 
-        return { baseUrl, clientId, clientSecret, accountId };
+        const baseUrl = await this.getSetting(`${prefix}BASE_URL`);
+        const clientId = await this.getSetting(`${prefix}CLIENT_ID`);
+        const clientSecret = await this.getSetting(`${prefix}CLIENT_SECRET`);
+        const accountId = await this.getSetting(`${prefix}ACCOUNT_ID`);
+        const webhookSecret = await this.getSetting(`${prefix}WEBHOOK_SECRET`);
+
+        return { baseUrl, clientId, clientSecret, accountId, webhookSecret, environment };
     }
 }
