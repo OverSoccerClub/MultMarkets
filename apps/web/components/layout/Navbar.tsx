@@ -54,7 +54,7 @@ export function Navbar() {
     return (
         <header className="fixed top-0 left-0 right-0 z-[1100] flex flex-col">
             {/* Main Nav (Single Line Refinement) */}
-            <nav className="relative z-50 h-[76px] glass-2 border-b border-white/[0.05] shadow-2xl backdrop-blur-3xl overflow-hidden">
+            <nav className="relative z-50 h-[76px] glass-2 border-b border-white/[0.05] shadow-2xl backdrop-blur-3xl">
                 <div className="mx-auto max-w-[1400px] px-6 h-full flex items-center justify-between gap-6">
 
                     {/* Left: Logo + Desktop Links */}
@@ -145,11 +145,11 @@ export function Navbar() {
                                 )}
 
                                 <div className="relative group/profile">
-                                    <button className="flex items-center gap-2 p-0.5 rounded-xl hover:bg-white/5 transition-all border border-transparent hover:border-white/10">
-                                        <div className="w-8 h-8 rounded-lg bg-accent-950 border border-white/10 flex items-center justify-center group-hover/profile:border-accent-500/50 transition-all">
-                                            <span className="text-xs font-black text-accent-500">
-                                                {user?.name?.charAt(0)?.toUpperCase()}
-                                            </span>
+                                    <button className="flex items-center gap-2 p-0.5 rounded-xl transition-all border border-transparent hover:border-white/10">
+                                        <div className="w-10 h-10 rounded-xl border border-white/10 p-0.5 bg-gradient-to-br from-white/10 to-transparent group-hover/profile:border-accent-500/50 transition-all">
+                                            <div className="h-full w-full rounded-[10px] bg-accent-950 flex items-center justify-center text-[11px] font-black text-accent-500 uppercase">
+                                                {user?.name?.substring(0, 2).toUpperCase() || 'U'}
+                                            </div>
                                         </div>
                                     </button>
 
