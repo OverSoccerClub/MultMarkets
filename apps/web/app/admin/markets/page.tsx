@@ -18,9 +18,16 @@ import {
     Globe,
     Bot,
     AlertCircle,
+    Plus,
+    Edit3,
+    Trash2,
+    Play,
+    Pause,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '@/lib/api';
+import { MarketFormModal } from './components/MarketFormModal';
+import { ResolveMarketModal } from './components/ResolveMarketModal';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
     ACTIVE: { label: 'Ativo', color: 'text-yes-400', bg: 'bg-yes-400/10', icon: CheckCircle2 },
@@ -39,6 +46,11 @@ export default function AdminMarketsPage() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('Todos');
     const [cancelId, setCancelId] = useState<string | null>(null);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isResolveOpen, setIsResolveOpen] = useState(false);
+    const [selectedMarket, setSelectedMarket] = useState<any>(null);
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['admin-markets', statusFilter],
@@ -68,6 +80,25 @@ export default function AdminMarketsPage() {
         onError: () => toastError('Erro', 'Não foi possível ativar o mercado.'),
     });
 
+    const pauseMutation = useMutation({
+        mutationFn: (id: string) => api.patch(`/markets/${id}`, { status: 'PENDING' }).then(r => r.data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-markets'] });
+            success('Mercado Pausado', 'O mercado foi colocado em revisão e as apostas suspensas.');
+        },
+        onError: () => toastError('Erro', 'Não foi possível pausar o mercado.'),
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: (id: string) => marketsApi.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-markets'] });
+            setDeleteId(null);
+            success('Excluído', 'Mercado removido permanentemente.');
+        },
+        onError: (err: any) => toastError('Erro', err?.response?.data?.message || 'Não é possível excluir este mercado.'),
+    });
+
     const markets: any[] = data?.items ?? [];
     const filtered = search
         ? markets.filter((m: any) => m.title.toLowerCase().includes(search.toLowerCase()))
@@ -95,6 +126,17 @@ export default function AdminMarketsPage() {
                             {filtered.length} mercados
                         </span>
                     </div>
+
+                    <button
+                        onClick={() => {
+                            setSelectedMarket(null);
+                            setIsFormOpen(true);
+                        }}
+                        className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-accent-500 hover:text-white transition-all shadow-glow-accent"
+                    >
+                        <Plus size={16} />
+                        Nova Predição
+                    </button>
                 </div>
             </div>
 
@@ -208,24 +250,68 @@ export default function AdminMarketsPage() {
                                         <button
                                             onClick={() => activateMutation.mutate(market.id)}
                                             disabled={activateMutation.isPending}
-                                            className="px-4 py-2 rounded-xl bg-yes-400/10 border border-yes-400/20 text-yes-400 text-[10px] font-black uppercase tracking-widest hover:bg-yes-400/20 transition-colors"
+                                            className="p-2 rounded-xl bg-yes-400/10 border border-yes-400/20 text-yes-400 hover:bg-yes-400/20 transition-colors"
+                                            title="Ativar"
                                         >
-                                            Ativar
+                                            <Play size={14} />
                                         </button>
                                     )}
                                     {isActive && (
+                                        <>
+                                            <button
+                                                onClick={() => pauseMutation.mutate(market.id)}
+                                                disabled={pauseMutation.isPending}
+                                                className="p-2 rounded-xl bg-yellow-400/10 border border-yellow-400/20 text-yellow-400 hover:bg-yellow-400/20 transition-colors"
+                                                title="Pausar"
+                                            >
+                                                <Pause size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedMarket(market);
+                                                    setIsResolveOpen(true);
+                                                }}
+                                                className="px-4 py-2 rounded-xl bg-accent-500 text-white text-[10px] font-black uppercase tracking-widest hover:bg-accent-600 transition-colors shadow-glow-accent"
+                                            >
+                                                Resolver
+                                            </button>
+                                            <button
+                                                onClick={() => setCancelId(market.id)}
+                                                className="p-2 rounded-xl bg-no-400/10 border border-no-400/20 text-no-400 hover:bg-no-400/20 transition-colors"
+                                                title="Anular/Estornar"
+                                            >
+                                                <XCircle size={14} />
+                                            </button>
+                                        </>
+                                    )}
+
+                                    <button
+                                        onClick={() => {
+                                            setSelectedMarket(market);
+                                            setIsFormOpen(true);
+                                        }}
+                                        className="p-2 rounded-xl border border-white/5 text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+                                        title="Editar"
+                                    >
+                                        <Edit3 size={14} />
+                                    </button>
+
+                                    {Number(market.totalVolume) === 0 && (
                                         <button
-                                            onClick={() => setCancelId(market.id)}
-                                            className="px-4 py-2 rounded-xl bg-no-400/10 border border-no-400/20 text-no-400 text-[10px] font-black uppercase tracking-widest hover:bg-no-400/20 transition-colors"
+                                            onClick={() => setDeleteId(market.id)}
+                                            className="p-2 rounded-xl border border-white/5 text-no-400/40 hover:text-no-400 hover:bg-no-400/5 transition-colors"
+                                            title="Excluir Permanentemente"
                                         >
-                                            Cancelar
+                                            <Trash2 size={14} />
                                         </button>
                                     )}
+
                                     <a
                                         href={`/markets/${market.slug}`}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="p-2 rounded-xl border border-white/5 text-white/30 hover:text-white hover:bg-white/5 transition-colors"
+                                        title="Ver no Site"
                                     >
                                         <ExternalLink size={14} />
                                     </a>
@@ -236,16 +322,54 @@ export default function AdminMarketsPage() {
                 </div>
             )}
 
-            {/* 🗑️ Cancel Confirmation */}
+            {/* 🗑️ Anular Confirmation */}
             <ConfirmationModal
                 isOpen={!!cancelId}
                 onClose={() => setCancelId(null)}
                 onConfirm={() => cancelId && cancelMutation.mutate(cancelId)}
-                title="Cancelar Mercado"
-                message="Ao cancelar o mercado, as apostas serão devolvidas e ele não aceitará mais participações. Esta ação não pode ser desfeita."
-                confirmText="Cancelar Mercado"
+                title="Anular Mercado"
+                message="Ao anular o mercado, TODAS as apostas serão devolvidas integralmente às carteiras dos usuários. Esta ação é drástica e não pode ser desfeita."
+                confirmText="Anular e Estornar"
                 variant="danger"
                 isLoading={cancelMutation.isPending}
+            />
+
+            {/* 🗑️ Excluir Confirmation */}
+            <ConfirmationModal
+                isOpen={!!deleteId}
+                onClose={() => setDeleteId(null)}
+                onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
+                title="Excluir Mercado"
+                message="Você tem certeza que deseja excluir permanentemente este mercado? Esta ação só é permitida porque não há apostas ativas."
+                confirmText="Excluir Para Sempre"
+                variant="danger"
+                isLoading={deleteMutation.isPending}
+            />
+
+            {/* 📝 Create/Edit Modal */}
+            <MarketFormModal
+                isOpen={isFormOpen}
+                onClose={() => {
+                    setIsFormOpen(false);
+                    setSelectedMarket(null);
+                }}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['admin-markets'] });
+                }}
+                initialData={selectedMarket}
+            />
+
+            {/* 🏁 Resolve Modal */}
+            <ResolveMarketModal
+                isOpen={isResolveOpen}
+                onClose={() => {
+                    setIsResolveOpen(false);
+                    setSelectedMarket(null);
+                }}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['admin-markets'] });
+                }}
+                market={selectedMarket}
             />
         </div>
     );

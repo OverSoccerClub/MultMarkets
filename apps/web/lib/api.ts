@@ -73,6 +73,10 @@ export const marketsApi = {
     trending: (limit = 10) => api.get('/markets/trending', { params: { limit } }).then((r) => r.data),
     detail: (slug: string) => api.get(`/markets/${slug}`).then((r) => r.data),
     history: (id: string, period = '24h') => api.get(`/markets/${id}/history`, { params: { period } }).then((r) => r.data),
+    create: (data: any) => api.post('/markets', data).then((r) => r.data),
+    update: (id: string, data: any) => api.patch(`/markets/${id}`, data).then((r) => r.data),
+    delete: (id: string) => api.delete(`/markets/${id}`).then((r) => r.data),
+    resolve: (id: string, outcome: 'YES' | 'NO' | 'CANCELLED') => api.post(`/markets/${id}/resolve`, { outcome }).then((r) => r.data),
 };
 
 export const walletApi = {

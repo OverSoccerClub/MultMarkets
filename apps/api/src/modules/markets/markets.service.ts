@@ -93,6 +93,18 @@ export class MarketsService {
         return this.formatMarket(market, true);
     }
 
+    async delete(id: string) {
+        const market = await this.prisma.market.findUnique({ where: { id } });
+        if (!market) throw new NotFoundException('Mercado não encontrado');
+        
+        if (Number(market.totalVolume) > 0) {
+            throw new Error('Não é possível excluir um mercado que já possui saldo apostado. Use o recurso de CANCELAR para estornar os usuários.');
+        }
+
+        await this.prisma.market.delete({ where: { id } });
+        return { success: true, message: 'Mercado deletado com sucesso.' };
+    }
+
     async create(data: any) {
         const slug = this.generateSlug(data.title);
         const market = await this.prisma.market.create({
