@@ -14,7 +14,8 @@ import {
     ChevronRight,
     TrendingUp,
     ShieldCheck,
-    Zap
+    Zap,
+    DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SystemVersion } from '@/components/layout/SystemVersion';
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
     { name: 'Fontes dos Bots', href: '/admin/bots', icon: SettingsIcon },
     { name: 'Descobertas AI', href: '/admin/findings', icon: Bot },
     { name: 'Mercados', href: '/admin/markets', icon: Search },
+    { name: 'Financeiro', href: '/admin/transactions', icon: DollarSign },
     { name: 'Configurações', href: '/admin/settings', icon: Sliders },
 ];
 

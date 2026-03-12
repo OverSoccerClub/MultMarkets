@@ -16,6 +16,7 @@ import { PixModule } from './modules/pix/pix.module';
 import { GatewaysModule } from './modules/gateways/gateways.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { FinancialModule } from './modules/financial/financial.module';
 // import { NotificationsModule } from './modules/notifications/notifications.module';
 // import { AdminModule } from './modules/admin/admin.module';
 // import { CategoriesModule } from './modules/categories/categories.module';
@@ -63,6 +64,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
         GatewaysModule,
         SettingsModule,
         NotificationsModule,
+        FinancialModule,
     ],
 })
 export class AppModule { }
