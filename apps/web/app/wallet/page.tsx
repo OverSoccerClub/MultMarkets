@@ -407,7 +407,7 @@ export default function WalletPage() {
 
                         {withdrawMutation.isSuccess && (
                             <div className="p-3 rounded-lg bg-[var(--color-yes-subtle)] border border-[var(--color-yes-border)] text-sm text-[var(--color-yes-text)]">
-                                ✓ Saque enviado com sucesso! O PIX será processado em instantes.
+                                ✓ {withdrawMutation.data?.message || 'Saque solicitado com sucesso!'}
                             </div>
                         )}
 

@@ -131,6 +131,12 @@ export class PixService {
             throw new BadRequestException(`Saldo insuficiente. Disponível: R$ ${available.toFixed(2)}`);
         }
 
+        // Check environment
+        const gateway = await this.gatewaysService.getActiveGateway(GatewayType.PIX);
+        const isSandbox = gateway.environment === 'SANDBOX';
+        const initialStatus = isSandbox ? TransactionStatus.COMPLETED : TransactionStatus.PENDING;
+        const initialPixStatus = isSandbox ? PixTransactionStatus.PAID : PixTransactionStatus.PENDING;
+
         const txId = this.generateTxId();
         const amountCents = Math.round(amount * 100);
 
@@ -153,11 +159,11 @@ export class PixService {
                 data: {
                     walletId: wallet.id,
                     type: TransactionType.WITHDRAWAL,
-                    status: TransactionStatus.PENDING,
+                    status: initialStatus,
                     amount,
                     balanceBefore: Number(currentWallet.balance),
                     balanceAfter: newBalance,
-                    description: `Saque PIX → ${pixKey}`,
+                    description: isSandbox ? `Saque PIX Automático (Sandbox) → ${pixKey}` : `Saque PIX → ${pixKey}`,
                     metadata: { pixKey, txId },
                 },
             });
@@ -166,19 +172,35 @@ export class PixService {
             const pixTx = await tx.pixTransaction.create({
                 data: {
                     walletId: wallet.id,
+                    type: 'CASH_IN', // Fixing typo: Cash-Out should follow the model but CASH_IN with CASH_OUT logic is often used for PIX Out in some schemas, wait let me check the enum.
+                    // Actually line 169 says 'CASH_OUT', let me keep it consistent.
                     type: 'CASH_OUT',
-                    status: 'PENDING',
+                    status: initialPixStatus,
                     amount,
                     amountCents,
                     txId,
                     pixKey,
+                    paidAt: isSandbox ? new Date() : null,
                 },
             });
 
             return pixTx;
         });
 
-        // Call active gateway provider
+        // If sandbox, return success immediately without calling provider if preferred, 
+        // or call provider in sandbox mode. The current provider implementation handle SANDBOX internally.
+        if (isSandbox) {
+            this.logger.log(`Sandbox Withdrawal Auto-Completed: userId=${userId}, txId=${txId}, amount=R$${amount}`);
+            return {
+                txId,
+                amount,
+                pixKey,
+                status: 'PAID',
+                message: 'Saque realizado com sucesso (Simulação Sandbox).',
+            };
+        }
+
+        // Call active gateway provider (PRODUCTION)
         try {
             const { provider, config } = await this.getProviderInfo();
             const initiateResponse = await provider.initiateWithdrawal(amountCents, txId, pixKey, config);
@@ -210,7 +232,7 @@ export class PixService {
                 amount,
                 pixKey,
                 status: 'PROCESSING',
-                message: 'Saque enviado com sucesso! O PIX será processado em instantes.',
+                message: 'Solicitação de saque registrada. Processamento em até 24h.',
             };
         } catch (error) {
             // If Bankizi call fails, refund the user
