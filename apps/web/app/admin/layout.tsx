@@ -171,22 +171,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {/* 🚀 Main Content */}
             <main className="flex-1 flex flex-col min-w-0">
-                {/* Top Header */}
-                <header className="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-black/20 backdrop-blur-3xl sticky top-0 z-40">
-                    <div className="flex items-center gap-4">
-                        <h1 className="text-lg font-black tracking-tight uppercase">
-                            {NAV_ITEMS.find(i => i.href === pathname)?.name || 'Painel Admin'}
-                        </h1>
-                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[9px] font-black text-accent-400 uppercase tracking-widest">Live</span>
+                {/* 🚀 Top Navigation / Header */}
+                <header className="h-[76px] border-b border-white/5 flex items-center justify-between px-10 bg-black/20 backdrop-blur-3xl sticky top-0 z-40">
+                    <div className="flex items-center gap-8 flex-1">
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-sm font-black tracking-tight uppercase">
+                                {NAV_ITEMS.find(i => i.href === pathname)?.name || 'Painel Admin'}
+                            </h1>
+                            <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[8px] font-black text-accent-400 uppercase tracking-widest">Live</span>
+                        </div>
+
+                        {/* Middle: Admin Search Wrapper */}
+                        <div className="hidden lg:flex flex-1 max-w-sm relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-accent-500 transition-colors" size={14} />
+                            <input
+                                type="text"
+                                placeholder="Comando rápido..."
+                                className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-2 pl-10 pr-4 text-xs text-white placeholder:text-white/20 focus:bg-white/[0.07] focus:border-accent-500/50 outline-none transition-all"
+                            />
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-6">
                         <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-xl border border-white/5">
                             <TrendingUp size={14} className="text-accent-500" />
-                            <span className="text-xs font-bold tabular-nums">R$ 1.4M Volume</span>
+                            <span className="text-[11px] font-bold tabular-nums">R$ 1.4M Volume</span>
                         </div>
-                        <div className="h-10 w-10 rounded-full border border-white/10 p-0.5 bg-gradient-to-br from-white/10 to-transparent">
-                            <div className="h-full w-full rounded-full bg-accent-950 flex items-center justify-center text-[10px] font-black">AD</div>
+                        
+                        <div className="flex items-center gap-3">
+                            <div className="text-right hidden sm:block">
+                                <div className="text-[10px] font-black text-white uppercase leading-none mb-1">{user?.username || 'Admin'}</div>
+                                <div className="text-[8px] font-bold text-accent-500 uppercase tracking-widest">Master Access</div>
+                            </div>
+                            <div className="h-10 w-10 rounded-xl border border-white/10 p-0.5 bg-gradient-to-br from-white/10 to-transparent group hover:border-accent-500/50 transition-all cursor-pointer">
+                                <div className="h-full w-full rounded-[10px] bg-accent-950 flex items-center justify-center text-[10px] font-black">
+                                    {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </header>

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { ThemeProvider } from 'next-themes';
 import { Providers } from './providers';
-import { Navbar } from '@/components/layout/Navbar';
+import { NavbarWrapper } from '@/components/layout/NavbarWrapper';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -35,8 +35,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <body className="min-h-dvh bg-bg-base text-text-secondary antialiased" suppressHydrationWarning>
                 <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
                     <Providers>
-                        <Navbar />
-                        <main className="pt-16">{children}</main>
+                        <NavbarWrapper>
+                            {children}
+                        </NavbarWrapper>
                     </Providers>
                 </ThemeProvider>
             </body>
