@@ -232,49 +232,60 @@ export class BankiziService {
     }
 
     // ── Transaction Status Queries ─────────────────────────────────────
-    async getCashInStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {
+    async getCashInSmartStatus(internalTxId: string, bankiziTxId?: string, customConfig?: any): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders(customConfig);
         
+        // Accumulate all IDs we might want to try
+        const idsToTry = [internalTxId];
+        if (bankiziTxId && bankiziTxId !== internalTxId) {
+            idsToTry.push(bankiziTxId);
+        }
+
         // List of candidate endpoints for Bankizi status check
-        // We will try them in order until one doesn't 404
-        const candidates = [
-            `/pix/qrcode/dynamic/${txId}`,
-            `/pix/transaction/cashin/${txId}`,
-            `/pix/transaction/${txId}`,
-            `/pix/transaction/cashin/txid/${txId}`
+        const pathTemplates = [
+            '/pix/qrcode/dynamic/{id}',
+            '/pix/transaction/cashin/{id}',
+            '/pix/transaction/{id}',
+            '/pix/transaction/cashin/txid/{id}',
+            '/pix/transaction/txId/{id}',
+            '/pix/qrcode/dynamic/status/{id}'
         ];
 
         let lastError: any = null;
 
-        for (const path of candidates) {
-            try {
-                this.logger.debug(`Trying Bankizi status path: ${path}`);
-                const response = await fetch(`${config.baseUrl}${path}`, {
-                    method: 'GET',
-                    headers,
-                });
-
-                if (response.ok) {
-                    const jsonRes = await response.json();
-                    this.logger.log(`Bankizi status found at ${path}: ${JSON.stringify(jsonRes)}`);
-                    return jsonRes.data || jsonRes;
-                }
-
-                if (response.status !== 404) {
-                    // If it's not a 404, it might be a real error (401, 500), so we stop and throw
-                    const errorText = await response.text();
-                    throw new Error(`Bankizi error at ${path}: ${response.status} - ${errorText}`);
-                }
+        for (const id of idsToTry) {
+            for (const template of pathTemplates) {
+                const path = template.replace('{id}', id);
+                const fullUrl = `${config.baseUrl}${path}`;
                 
-                // If it's 404, we continue to the next candidate
-                this.logger.warn(`Bankizi status path ${path} returned 404`);
-            } catch (error: any) {
-                this.logger.error(`Error trying path ${path}: ${error.message}`);
-                lastError = error;
+                try {
+                    this.logger.debug(`Probing Bankizi status: ${fullUrl}`);
+                    const response = await fetch(fullUrl, {
+                        method: 'GET',
+                        headers,
+                    });
+
+                    if (response.ok) {
+                        const jsonRes = await response.json();
+                        this.logger.log(`Bankizi status FOUND at ${path} using ID ${id}: ${JSON.stringify(jsonRes)}`);
+                        return jsonRes.data || jsonRes;
+                    }
+
+                    if (response.status !== 404) {
+                        const errorText = await response.text();
+                        this.logger.warn(`Bankizi returned ${response.status} at ${path} for ID ${id}: ${errorText}`);
+                        // If it's 401/403, we might have a config issue, but we keep trying other paths just in case
+                    } else {
+                        this.logger.debug(`Bankizi path ${path} for ID ${id} is 404`);
+                    }
+                } catch (error: any) {
+                    this.logger.error(`Fetch error for ${fullUrl}: ${error.message}`);
+                    lastError = error;
+                }
             }
         }
 
-        throw new Error(lastError?.message || `Failed to find status for txId ${txId} across all known Bankizi endpoints.`);
+        throw new Error(lastError?.message || `Failed to find status for IDs [${idsToTry.join(', ')}] across all Bankizi candidates.`);
     }
 
     async getCashOutStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {

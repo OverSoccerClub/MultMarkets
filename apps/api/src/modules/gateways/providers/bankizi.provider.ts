@@ -57,8 +57,9 @@ export class BankiziProvider implements PaymentGatewayProvider {
 
     async getStatus(txId: string, type: 'CASH_IN' | 'CASH_OUT', config?: any): Promise<StatusResponse> {
         try {
+            const bankiziTxId = config?.bankiziTxId;
             const rawResponse = type === 'CASH_IN' 
-                ? await this.bankiziService.getCashInStatus(txId, config)
+                ? await this.bankiziService.getCashInSmartStatus(txId, bankiziTxId, config)
                 : await this.bankiziService.getCashOutStatus(txId, config);
 
             // Some APIs return an array for a single txId query

@@ -288,10 +288,11 @@ export class PixService {
         if (pixTx.status === PixTransactionStatus.PENDING || pixTx.status === PixTransactionStatus.CONFIRMED) {
             try {
                 const { provider, config } = await this.getProviderInfo();
-                // We strongly prefer the gateway's own transaction ID for health checks
-                const targetTxId = pixTx.bankiziTxId || txId;
-                this.logger.debug(`Polling PIX status for userId=${userId}, txId=${txId}, using gateway reference=${targetTxId}`);
-                const statusRes = await provider.getStatus(targetTxId, pixTx.type as 'CASH_IN' | 'CASH_OUT', config);
+                this.logger.debug(`Polling PIX status for userId=${userId}, txId=${txId}, bankiziTxId=${pixTx.bankiziTxId}`);
+                const statusRes = await provider.getStatus(txId, pixTx.type as 'CASH_IN' | 'CASH_OUT', { 
+                    ...config, 
+                    bankiziTxId: pixTx.bankiziTxId 
+                });
 
                 if (statusRes.status === 'PAID') {
                     // Update if gateway says it's paid
