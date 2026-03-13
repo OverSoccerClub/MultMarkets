@@ -32,6 +32,14 @@ export class WebhookController {
         return this.processBankiziWebhook(req, headerSecret, 'SANDBOX');
     }
 
+    @Get('bankizi/sandbox')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Test endpoint to verify Sandbox webhook URL is reachable' })
+    async testBankiziSandboxWebhook() {
+        this.logger.log('=== BANKIZI WEBHOOK TEST (GET SANDBOX) ===> URL is reachable!');
+        return { status: 'ok', message: 'Sandbox Webhook endpoint is reachable' };
+    }
+
     @Post('bankizi/production')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Webhook para receber notificações da Bankizi (Produção)' })
@@ -40,6 +48,14 @@ export class WebhookController {
         @Headers('x-webhook-secret') headerSecret?: string,
     ) {
         return this.processBankiziWebhook(req, headerSecret, 'PRODUCTION');
+    }
+
+    @Get('bankizi/production')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Test endpoint to verify Production webhook URL is reachable' })
+    async testBankiziProductionWebhook() {
+        this.logger.log('=== BANKIZI WEBHOOK TEST (GET PRODUCTION) ===> URL is reachable!');
+        return { status: 'ok', message: 'Production Webhook endpoint is reachable' };
     }
 
     // ── Legacy Endpoint (Keeping for transition/fallback) ─────────────
