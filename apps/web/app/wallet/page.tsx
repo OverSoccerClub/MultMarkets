@@ -401,8 +401,19 @@ export default function WalletPage() {
                         </div>
 
                         {withdrawMutation.isSuccess && (
-                            <div className="p-3 rounded-lg bg-[var(--color-yes-subtle)] border border-[var(--color-yes-border)] text-sm text-[var(--color-yes-text)]">
-                                ✓ {withdrawMutation.data?.message || 'Saque solicitado com sucesso!'}
+                            <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 text-center space-y-3">
+                                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 mx-auto">
+                                    <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <h4 className="text-lg font-bold text-emerald-400">Saque Concluído com Sucesso!</h4>
+                                <p className="text-sm text-white/50">
+                                    Seu saque de <strong className="text-white">{formatBRL(parseFloat(withdrawAmount) || 0)}</strong> foi processado e enviado para sua chave PIX cadastrada.
+                                </p>
+                                <p className="text-xs text-white/30">
+                                    O valor estará disponível na sua conta bancária em instantes.
+                                </p>
                             </div>
                         )}
 

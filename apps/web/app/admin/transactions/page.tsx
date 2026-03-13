@@ -195,7 +195,7 @@ export default function AdminTransactionsPage() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            {tx.type === 'CASH_OUT' && (tx.status === 'PENDING' || tx.status === 'CONFIRMED') ? (
+                                            {tx.type === 'CASH_OUT' && tx.status === 'PENDING' ? (
                                                 <div className="flex items-center justify-end gap-2 text-white/20">
                                                     <button 
                                                         onClick={() => approveMutation.mutate(tx.txId)}
