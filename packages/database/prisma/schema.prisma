@@ -286,6 +286,7 @@ model PixTransaction {
   amountCents     Int                  // value sent to Bankizi (in cents)
   txId            String               @unique              // unique transaction ID
   bankiziTxId     String?                                   // Bankizi's transactionId
+  endToEndId      String?              @unique              // Unique PIX transfer identifier (for refunds)
   pixKey          String?                                   // For cash-out: destination PIX key
   qrCodePayload   String?              @db.Text             // QR code payload (copia-e-cola)
   expiresAt       DateTime?

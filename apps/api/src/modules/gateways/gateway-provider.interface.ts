@@ -28,4 +28,5 @@ export interface PaymentGatewayProvider {
   initiateWithdrawal(amount: number, txId: string, pixKey: string, config?: any): Promise<WithdrawalResponse>;
   confirmWithdrawal(txId: string, config?: any): Promise<WithdrawalResponse>;
   getStatus(txId: string, type: 'CASH_IN' | 'CASH_OUT', config?: any): Promise<StatusResponse>;
+  refundDeposit(endToEndId: string, config?: any): Promise<any>;
 }

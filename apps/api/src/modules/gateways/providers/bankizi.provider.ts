@@ -58,34 +58,32 @@ export class BankiziProvider implements PaymentGatewayProvider {
     async getStatus(txId: string, type: 'CASH_IN' | 'CASH_OUT', config?: any): Promise<StatusResponse> {
         try {
             const bankiziTxId = config?.bankiziTxId;
-            const rawResponse = type === 'CASH_IN' 
+            const response = type === 'CASH_IN' 
                 ? await this.bankiziService.getCashInSmartStatus(txId, bankiziTxId, config)
                 : await this.bankiziService.getCashOutStatus(txId, config);
 
-            // Some APIs return an array for a single txId query
-            const response = Array.isArray(rawResponse) ? rawResponse[0] : rawResponse;
-
-            if (!response) {
-                return { status: 'PENDING' };
-            }
-
-            const rawStatus = response.status ? String(response.status).toUpperCase() : '';
-            let status: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' = 'PENDING';
-            
-            if (['PAID', 'APPROVED', 'COMPLETED', 'SUCCESS', 'CONCLUDED'].includes(rawStatus)) {
-                status = 'PAID';
-            } else if (['FAILED', 'CANCELED', 'CANCELLED', 'EXPIRED', 'ERROR'].includes(rawStatus)) {
-                status = 'FAILED';
+            let mappedStatus: StatusResponse['status'] = 'PENDING';
+            if (['PAID', 'APPROVED', 'COMPLETED', 'SUCCESS', 'CONCLUDED'].includes(response.status)) {
+                mappedStatus = 'PAID';
+            } else if (['REJECTED', 'FAILED', 'CANCELLED', 'ERROR'].includes(response.status)) {
+                mappedStatus = 'FAILED';
+            } else if (response.status === 'EXPIRED') {
+                mappedStatus = 'EXPIRED';
             }
 
             return {
-                status,
+                status: mappedStatus,
                 transactionId: response.transactionId,
                 metadata: response,
             };
         } catch (error) {
-            this.logger.error(`Error getting status from Bankizi: ${error.message}`);
-            return { status: 'PENDING' }; // Fallback
+            this.logger.error(`Error fetching status on Bankizi: ${error.message}`);
+            // Wait silently or throw, depends on polling strategy. For now rethrow.
+            throw new InternalServerErrorException('Falha ao consultar status via Bankizi.');
         }
+    }
+
+    async refundDeposit(endToEndId: string, config?: any): Promise<any> {
+        return this.bankiziService.refundTransaction(endToEndId, config);
     }
 }

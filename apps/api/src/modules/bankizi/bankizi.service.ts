@@ -231,6 +231,35 @@ export class BankiziService {
         return data;
     }
 
+    // ── PIX Refund (Estorno) ───────────────────────────────────────────
+    async refundTransaction(endToEndId: string, customConfig?: any): Promise<any> {
+        this.logger.log(`Initiating refund for transaction: endToEndId=${endToEndId}`);
+
+        const { headers, config } = await this.getHeaders(customConfig);
+        let response: Response;
+        try {
+            response = await fetch(`${config.baseUrl}/pix/qrcode/refund`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ identifierTransaction: endToEndId }),
+            });
+        } catch (error: any) {
+            this.logger.error(`Bankizi refund fetch failed: ${error.message}`);
+            throw new BadGatewayException(`Falha de rede ao solicitar estorno: ${error.message}`);
+        }
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            this.logger.error(`Bankizi refund failed: ${response.status} - ${errorText}`);
+            throw new Error(`Failed to refund transaction: ${response.status} - ${errorText}`);
+        }
+
+        const jsonRes = await response.json();
+        const data = jsonRes.data || jsonRes;
+        this.logger.log(`Refund requested successfully: status=${data.status}, refundAmount=${data.refundAmount}`);
+        return data;
+    }
+
     // ── Transaction Status Queries ─────────────────────────────────────
     async getCashInSmartStatus(internalTxId: string, bankiziTxId?: string, customConfig?: any): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders(customConfig);

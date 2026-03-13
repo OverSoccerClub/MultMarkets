@@ -396,12 +396,40 @@ export class PixService {
             if (webhookData && userCpf) {
                 const payerCpf = this.extractPayerCpf(webhookData);
                 if (payerCpf && payerCpf !== userCpf) {
-                    this.logger.warn(`Deposit REJECTED due to CPF mismatch: txId=${txId}, expected userCpf=${userCpf}, got payerCpf=${payerCpf}`);
+                    this.logger.warn(`Deposit REJECTED due to CPF mismatch: txId=${txId}, expected userCpf=${userCpf}, got payerCpf=${payerCpf}. Attempting automatic refund...`);
+                    
+                    // Attempt automatic refund via Bankizi
+                    let refundError = null;
+                    const endToEndId = webhookData?.endToEndId || webhookData?.data?.endToEndId || pixTx.endToEndId;
+                    if (endToEndId) {
+                        try {
+                            const { provider, config } = await this.getProviderInfo();
+                            if (provider.refundDeposit) {
+                                await provider.refundDeposit(endToEndId, config);
+                                this.logger.log(`Automatic refund successfully requested for E2EID: ${endToEndId}`);
+                            } else {
+                                this.logger.warn(`Provider does not support automatic refunds in interface.`);
+                            }
+                        } catch (err: any) {
+                            this.logger.error(`Failed to process automatic refund for txId=${txId}: ${err.message}`);
+                            refundError = err.message;
+                        }
+                    } else {
+                        this.logger.warn(`Cannot process automatic refund for txId=${txId}: Missing endToEndId from webhook data.`);
+                    }
+
                     await this.prisma.pixTransaction.update({
                         where: { txId: pixTx.txId },
                         data: { 
                             status: 'FAILED', 
-                            metadata: { ...(pixTx.metadata as any || {}), rejectionReason: 'CPF Divergente (Depósito de Terceiros)', payerCpf }
+                            endToEndId: endToEndId,
+                            metadata: { 
+                                ...(pixTx.metadata as any || {}), 
+                                rejectionReason: 'CPF Divergente (Depósito de Terceiros)', 
+                                payerCpf,
+                                refundAttempted: !!endToEndId,
+                                refundError
+                            }
                         }
                     });
                     return; // Abort deposit
@@ -440,7 +468,11 @@ export class PixService {
 
                 await tx.pixTransaction.update({
                     where: { txId: pixTx.txId },
-                    data: { status: 'PAID', paidAt: new Date() },
+                    data: { 
+                        status: 'PAID', 
+                        paidAt: new Date(),
+                        endToEndId: webhookData?.endToEndId || webhookData?.data?.endToEndId
+                    },
                 });
             });
 
