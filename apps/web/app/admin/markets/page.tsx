@@ -23,6 +23,8 @@ import {
     Trash2,
     Play,
     Pause,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { api } from '@/lib/api';
@@ -45,6 +47,8 @@ export default function AdminMarketsPage() {
     const { success, error: toastError } = useToast();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('Todos');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [cancelId, setCancelId] = useState<string | null>(null);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     
@@ -53,11 +57,12 @@ export default function AdminMarketsPage() {
     const [selectedMarket, setSelectedMarket] = useState<any>(null);
 
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ['admin-markets', statusFilter],
+        queryKey: ['admin-markets', statusFilter, page, limit],
         queryFn: () =>
             marketsApi.list({
                 status: statusFilter === 'Todos' ? 'ALL' : statusFilter,
-                limit: 50,
+                page,
+                limit,
             }),
     });
 
@@ -319,6 +324,47 @@ export default function AdminMarketsPage() {
                             </motion.div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* Pagination */}
+            {data?.meta && (
+                <div className="p-6 bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                            Página {data.meta.page} de {data.meta.totalPages} ({data.meta.total} mercados)
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Exibir</span>
+                            <select
+                                value={limit}
+                                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                                className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page === 1}
+                            className="p-2 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button 
+                            onClick={() => setPage(p => Math.min(data.meta.totalPages, p + 1))}
+                            disabled={page === data.meta.totalPages}
+                            className="p-2 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             )}
 

@@ -33,6 +33,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
 export default function AdminTransactionsPage() {
     const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [rejectionReason, setRejectionReason] = useState('');
@@ -40,10 +41,10 @@ export default function AdminTransactionsPage() {
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
     const { data, isLoading } = useQuery({
-        queryKey: ['admin-transactions', page, statusFilter, typeFilter],
+        queryKey: ['admin-transactions', page, limit, statusFilter, typeFilter],
         queryFn: () => financialApi.getTransactions({ 
             page, 
-            limit: 10, 
+            limit, 
             status: statusFilter || undefined, 
             type: typeFilter || undefined 
         }),
@@ -218,11 +219,27 @@ export default function AdminTransactionsPage() {
                 </div>
 
                 {/* Pagination */}
-                {data?.meta && data.meta.totalPages > 1 && (
+                {data?.meta && (
                     <div className="p-6 bg-white/[0.01] border-t border-white/5 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                            Página {data.meta.page} de {data.meta.totalPages} ({data.meta.total} transações)
-                        </span>
+                        <div className="flex items-center gap-4">
+                            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                                Página {data.meta.page} de {data.meta.totalPages} ({data.meta.total} transações)
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Exibir</span>
+                                <select
+                                    value={limit}
+                                    onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                                    className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white"
+                                >
+                                    <option value={5}>5</option>
+                                    <option value={10}>10</option>
+                                    <option value={20}>20</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2">
                             <button 
                                 onClick={() => setPage(p => Math.max(1, p - 1))}
