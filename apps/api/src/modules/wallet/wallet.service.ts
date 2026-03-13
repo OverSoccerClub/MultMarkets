@@ -246,7 +246,13 @@ export class WalletService {
             ...((filters.startDate || filters.endDate) && {
                 createdAt: {
                     ...(filters.startDate && { gte: new Date(filters.startDate) }),
-                    ...(filters.endDate && { lte: new Date(filters.endDate) }),
+                    ...(filters.endDate && { 
+                        lte: (() => {
+                            const d = new Date(filters.endDate);
+                            d.setHours(23, 59, 59, 999);
+                            return d;
+                        })()
+                    }),
                 },
             }),
         };
