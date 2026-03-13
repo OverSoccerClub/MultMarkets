@@ -1,6 +1,6 @@
 import {
-    Controller, Post, Body, HttpCode, HttpStatus, Logger,
-    Headers, BadRequestException,
+    Controller, Post, Get, Body, HttpCode, HttpStatus, Logger,
+    Headers, BadRequestException, Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +27,9 @@ export class WebhookController {
         @Body() body: any,
         @Headers('x-webhook-secret') headerSecret?: string,
     ) {
+        this.logger.log(`=== BANKIZI WEBHOOK HIT ===> Headers secret: ${headerSecret ? 'present' : 'missing'}`);
+        this.logger.log(`=== BANKIZI WEBHOOK BODY ===> ${JSON.stringify(body)}`);
+
         // Fetch webhook secret dynamically from DB based on active environment (Sandbox vs Prod)
         const bankiziConfig = await this.settings.getBankiziConfig();
         const envPrefix = bankiziConfig.environment === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
@@ -34,11 +37,9 @@ export class WebhookController {
 
         // Basic webhook secret validation (if configured)
         if (webhookSecret && headerSecret !== webhookSecret) {
-            this.logger.warn('Webhook rejected: invalid secret');
+            this.logger.warn(`Webhook rejected: invalid secret (expected=${webhookSecret?.substring(0,4)}..., got=${headerSecret?.substring(0,4)}...)`);
             throw new BadRequestException('Invalid webhook secret');
         }
-
-        this.logger.log(`Bankizi webhook received: ${JSON.stringify(body)}`);
 
         let event = body?.event || body?.type;
         let data = body?.data || body?.payload || body;
@@ -62,5 +63,31 @@ export class WebhookController {
         }
 
         return { received: true };
+    }
+
+    @Get('bankizi')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Test endpoint to verify webhook URL is reachable' })
+    async testBankiziWebhook() {
+        this.logger.log('=== BANKIZI WEBHOOK TEST (GET) ===> URL is reachable!');
+        return { 
+            status: 'ok', 
+            message: 'Webhook endpoint is reachable',
+            timestamp: new Date().toISOString(),
+        };
+    }
+
+    @Post('bankizi/simulate')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Simulate a webhook payment confirmation (for testing)' })
+    async simulateBankiziWebhook(
+        @Query('txId') txId: string,
+    ) {
+        if (!txId) {
+            throw new BadRequestException('txId query param is required');
+        }
+        this.logger.log(`=== SIMULATING WEBHOOK for txId=${txId} ===`);
+        await this.pixService.handleWebhook('PIX_IN', { txId, status: 'PAID' });
+        return { status: 'ok', message: `Simulated PAID webhook for txId=${txId}` };
     }
 }
