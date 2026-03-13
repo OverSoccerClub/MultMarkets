@@ -1,6 +1,6 @@
 import {
     Controller, Post, Get, Body, HttpCode, HttpStatus, Logger,
-    Headers, BadRequestException, Query,
+    Headers, BadRequestException, Query, Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -24,9 +24,10 @@ export class WebhookController {
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Webhook para receber notificações da Bankizi (PIX)' })
     async handleBankiziWebhook(
-        @Body() body: any,
+        @Req() req: any,
         @Headers('x-webhook-secret') headerSecret?: string,
     ) {
+        const body = req.body;
         this.logger.log(`=== BANKIZI WEBHOOK HIT ===> Headers secret: ${headerSecret ? 'present' : 'missing'}`);
         this.logger.log(`=== BANKIZI WEBHOOK BODY ===> ${JSON.stringify(body)}`);
 
