@@ -147,6 +147,16 @@ export class BankiziService {
             txId: params.txId,
         };
 
+        // If webhook configuration is acting up, we explicitly send the callback URL in the payload
+        // (Many gateways support webhookUrl, callbackUrl, or notifyUrl overrides)
+        const baseUrl = config.environment === 'PRODUCTION' 
+            ? 'https://mult-markets-api.ptehea.easypanel.host' 
+            : 'http://localhost:3000';
+            
+        body.webhookUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
+        body.callbackUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
+        body.notifyUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
+
         if (params.payerInfo) {
             body.payerInfo = params.payerInfo;
         }
