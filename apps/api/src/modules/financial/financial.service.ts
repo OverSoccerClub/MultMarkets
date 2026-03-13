@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { TransactionStatus, PixTransactionStatus } from '@prisma/client';
+import { TransactionStatus, TransactionType, PixTransactionStatus } from '@prisma/client';
 
 @Injectable()
 export class FinancialService {
@@ -98,6 +98,58 @@ export class FinancialService {
 
     this.logger.log(`Withdrawal ${txId} manually approved by admin`);
     return { success: true, message: 'Saque aprovado com sucesso' };
+  }
+
+  async approveDeposit(txId: string) {
+    const pixTx = await this.prisma.pixTransaction.findUnique({
+      where: { txId },
+      include: { wallet: true },
+    });
+
+    if (!pixTx) throw new BadRequestException('Transação não encontrada');
+    if (pixTx.type !== 'CASH_IN') throw new BadRequestException('Apenas depósitos podem ser confirmados por esta ação');
+    if (pixTx.status === 'PAID') {
+      return { success: true, message: 'Depósito já foi confirmado anteriormente' };
+    }
+    if (pixTx.status !== 'PENDING' && pixTx.status !== 'CONFIRMED') {
+      throw new BadRequestException('Transação em estado inválido para confirmação');
+    }
+
+    const amount = Number(pixTx.amount);
+
+    await this.prisma.$transaction(async (tx) => {
+      const wallet = await tx.wallet.findUniqueOrThrow({ where: { id: pixTx.walletId } });
+      const newBalance = Number(wallet.balance) + amount;
+
+      // Credit the wallet
+      await tx.wallet.update({
+        where: { id: pixTx.walletId },
+        data: { balance: newBalance },
+      });
+
+      // Create wallet transaction record
+      await tx.walletTransaction.create({
+        data: {
+          walletId: pixTx.walletId,
+          type: TransactionType.DEPOSIT,
+          status: TransactionStatus.COMPLETED,
+          amount,
+          balanceBefore: Number(wallet.balance),
+          balanceAfter: newBalance,
+          description: 'Depósito via PIX (confirmado manualmente pelo admin)',
+          referenceId: txId,
+        },
+      });
+
+      // Update PIX transaction status
+      await tx.pixTransaction.update({
+        where: { txId },
+        data: { status: 'PAID', paidAt: new Date() },
+      });
+    });
+
+    this.logger.log(`Deposit ${txId} manually approved by admin, amount=${amount}`);
+    return { success: true, message: 'Depósito confirmado e saldo creditado com sucesso' };
   }
 
   async rejectWithdrawal(txId: string, reason?: string) {

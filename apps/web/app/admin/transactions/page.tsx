@@ -64,6 +64,14 @@ export default function AdminTransactionsPage() {
         }
     });
 
+    const approveDepositMutation = useMutation({
+        mutationFn: (txId: string) => financialApi.approveDeposit(txId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+            setSelectedTx(null);
+        }
+    });
+
     const rejectMutation = useMutation({
         mutationFn: ({ txId, reason }: { txId: string, reason: string }) => 
             financialApi.rejectWithdrawal(txId, reason),
@@ -209,6 +217,22 @@ export default function AdminTransactionsPage() {
                                                     >
                                                         <XCircle size={16} />
                                                         <span className="text-[9px] font-black uppercase tracking-widest">Rejeitar</span>
+                                                    </button>
+                                                </div>
+                                            ) : tx.type === 'CASH_IN' && (tx.status === 'PENDING' || tx.status === 'CONFIRMED') ? (
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button 
+                                                        onClick={() => approveDepositMutation.mutate(tx.txId)}
+                                                        disabled={approveDepositMutation.isPending}
+                                                        className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-all hover:scale-110 active:scale-95 flex items-center gap-1.5 px-3"
+                                                        title="Confirmar Depósito"
+                                                    >
+                                                        {approveDepositMutation.isPending ? (
+                                                            <Loader2 size={16} className="animate-spin" />
+                                                        ) : (
+                                                            <CheckCircle2 size={16} />
+                                                        )}
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">Confirmar</span>
                                                     </button>
                                                 </div>
                                             ) : (

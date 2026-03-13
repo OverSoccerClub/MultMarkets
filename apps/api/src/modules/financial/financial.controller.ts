@@ -35,6 +35,11 @@ export class FinancialController {
     return this.financialService.approveWithdrawal(txId);
   }
 
+  @Patch('transactions/:txId/approve-deposit')
+  async approveDeposit(@Param('txId') txId: string) {
+    return this.financialService.approveDeposit(txId);
+  }
+
   @Patch('transactions/:txId/reject')
   async rejectWithdrawal(
     @Param('txId') txId: string,

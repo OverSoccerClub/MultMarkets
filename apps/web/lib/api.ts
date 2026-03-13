@@ -136,6 +136,7 @@ export const financialApi = {
     getTransactions: (params: { page?: number; limit?: number; status?: string; type?: string }) =>
         api.get('/admin/financial/transactions', { params }).then((r) => r.data),
     approveWithdrawal: (txId: string) => api.patch(`/admin/financial/transactions/${txId}/approve`).then((r) => r.data),
+    approveDeposit: (txId: string) => api.patch(`/admin/financial/transactions/${txId}/approve-deposit`).then((r) => r.data),
     rejectWithdrawal: (txId: string, reason?: string) =>
         api.patch(`/admin/financial/transactions/${txId}/reject`, { reason }).then((r) => r.data),
 };
