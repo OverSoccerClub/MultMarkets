@@ -132,6 +132,9 @@ export default function WalletPage() {
                     setDepositResult((prev: any) => prev ? { ...prev, status: 'PAID' } : null);
                     queryClient.invalidateQueries({ queryKey: ['wallet'] });
                     queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] });
+                } else if (status.status === 'FAILED') {
+                    setPollTxId(null);
+                    setDepositResult((prev: any) => prev ? { ...prev, status: 'FAILED' } : null);
                 }
             } catch {
                 // ignore polling errors
@@ -298,16 +301,34 @@ export default function WalletPage() {
                     ) : (
                         <div className="space-y-6">
                             {depositResult.status === 'PAID' ? (
-                                <div className="text-center space-y-4">
-                                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--color-yes-subtle)] border border-[var(--color-yes-border)]">
-                                        <svg className="w-8 h-8 text-[var(--color-yes-text)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 text-center space-y-3">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-500/15 border border-emerald-500/30 mx-auto">
+                                        <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                     </div>
-                                    <h3 className="text-xl font-bold text-[var(--color-yes-text)]">Depósito Confirmado!</h3>
-                                    <p className="text-[var(--text-secondary)]">
-                                        {formatBRL(depositResult.amount)} foi creditado na sua carteira.
+                                    <h4 className="text-xl font-bold text-emerald-400">Depósito Confirmado!</h4>
+                                    <p className="text-sm text-white/50">
+                                        Excelente! O valor de <strong className="text-white">{formatBRL(depositResult.amount)}</strong> já foi creditado e está disponível na sua carteira.
                                     </p>
-                                    <button onClick={resetDeposit} className="btn btn-primary btn-lg">
+                                    <button onClick={resetDeposit} className="btn btn-primary w-full mt-2">
                                         Fazer outro depósito
+                                    </button>
+                                </div>
+                            ) : depositResult.status === 'FAILED' ? (
+                                <div className="p-6 rounded-2xl bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-500/20 text-center space-y-3">
+                                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-rose-500/15 border border-rose-500/30 mx-auto">
+                                        <svg className="w-7 h-7 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="text-lg font-bold text-rose-400">Depósito Rejeitado</h4>
+                                    <p className="text-sm text-white/50">
+                                        Identificamos que o pagamento foi realizado por uma <strong>conta bancária de terceiro</strong> (CPF/CNPJ divergente do seu cadastro).
+                                    </p>
+                                    <p className="text-xs text-white/30">
+                                        Por motivos de segurança, o valor não foi creditado. Entre em contato com o suporte caso precise de ajuda.
+                                    </p>
+                                    <button onClick={resetDeposit} className="btn btn-secondary w-full mt-2">
+                                        Tentar Novamente (Com sua própria conta)
                                     </button>
                                 </div>
                             ) : (
