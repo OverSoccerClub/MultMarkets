@@ -430,7 +430,7 @@ export default function WalletPage() {
                                 </div>
                                 <h4 className="text-lg font-bold text-emerald-400">Saque Concluído com Sucesso!</h4>
                                 <p className="text-sm text-white/50">
-                                    Seu saque de <strong className="text-white">{formatBRL(parseFloat(withdrawAmount) || 0)}</strong> foi processado e enviado para sua chave PIX cadastrada.
+                                    Seu saque de <strong className="text-white">{formatBRL(withdrawMutation.data?.amount || parseFloat(withdrawAmount) || 0)}</strong> foi processado e enviado para sua chave PIX cadastrada.
                                 </p>
                                 <p className="text-xs text-white/30">
                                     O valor estará disponível na sua conta bancária em instantes.
