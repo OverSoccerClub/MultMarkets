@@ -236,7 +236,8 @@ export class BankiziService {
         const { headers, config } = await this.getHeaders(customConfig);
         let response: Response;
         try {
-            response = await fetch(`${config.baseUrl}/pix/transaction/cashin/${txId}`, {
+            // For dynamic QR codes, the status check is usually on the same base path
+            response = await fetch(`${config.baseUrl}/pix/qrcode/dynamic/${txId}`, {
                 method: 'GET',
                 headers,
             });
