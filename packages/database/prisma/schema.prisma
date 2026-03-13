@@ -63,6 +63,7 @@ enum TransactionType {
 
 enum TransactionStatus {
   PENDING
+  CONFIRMED
   COMPLETED
   FAILED
   CANCELLED

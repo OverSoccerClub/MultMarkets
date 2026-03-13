@@ -212,16 +212,43 @@ export class PixService {
                 },
             });
 
+            // Sync WalletTransaction status to CONFIRMED
+            const wTxInitiate = await this.prisma.walletTransaction.findFirst({
+                where: { metadata: { path: ['txId'], equals: txId } }
+            });
+            if (wTxInitiate) {
+                await this.prisma.walletTransaction.update({
+                    where: { id: wTxInitiate.id },
+                    data: { status: TransactionStatus.CONFIRMED }
+                });
+            }
+
             // Step 2: Confirm withdrawal
             const confirmResponse = await provider.confirmWithdrawal(txId, config);
 
+            const finalTxStatus = confirmResponse.status === 'PAID' ? 'PAID' : 'CONFIRMED';
             await this.prisma.pixTransaction.update({
                 where: { txId },
                 data: {
-                    status: confirmResponse.status === 'PAID' ? 'PAID' : 'CONFIRMED',
+                    status: finalTxStatus,
                     metadata: confirmResponse.metadata as any,
                 },
             });
+
+            // Sync WalletTransaction status
+            const wTxConfirm = await this.prisma.walletTransaction.findFirst({
+                where: { metadata: { path: ['txId'], equals: txId } }
+            });
+            if (wTxConfirm) {
+                await this.prisma.walletTransaction.update({
+                    where: { id: wTxConfirm.id },
+                    data: { 
+                        status: finalTxStatus === 'PAID' 
+                            ? TransactionStatus.COMPLETED 
+                            : TransactionStatus.CONFIRMED 
+                    }
+                });
+            }
 
             this.logger.log(`Withdrawal processed: userId=${userId}, txId=${txId}, amount=R$${amount}`);
 
@@ -466,15 +493,26 @@ export class PixService {
                     },
                 });
 
-                await tx.pixTransaction.update({
-                    where: { txId: pixTx.txId },
-                    data: { 
-                        status: 'PAID', 
-                        paidAt: new Date(),
-                        endToEndId: webhookData?.endToEndId || webhookData?.data?.endToEndId
-                    },
+                    await tx.pixTransaction.update({
+                        where: { txId: pixTx.txId },
+                        data: { 
+                            status: 'PAID', 
+                            paidAt: new Date(),
+                            endToEndId: webhookData?.endToEndId || webhookData?.data?.endToEndId
+                        },
+                    });
+
+                    // Update WalletTransaction status to COMPLETED
+                    const wTx = await tx.walletTransaction.findFirst({
+                        where: { metadata: { path: ['txId'], equals: txId } }
+                    });
+                    if (wTx) {
+                        await tx.walletTransaction.update({
+                            where: { id: wTx.id },
+                            data: { status: TransactionStatus.COMPLETED }
+                        });
+                    }
                 });
-            });
 
             this.logger.log(`Deposit confirmed: txId=${txId}, amount=R$${pixTx.amount}`);
         } else {
