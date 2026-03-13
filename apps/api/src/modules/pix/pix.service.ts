@@ -87,6 +87,21 @@ export class PixService {
             },
         });
 
+        // Create initial WalletTransaction record (PENDING)
+        // This ensures the user sees the deposit in their history immediately.
+        await this.prisma.walletTransaction.create({
+            data: {
+                walletId: wallet.id,
+                type: TransactionType.DEPOSIT,
+                status: TransactionStatus.PENDING,
+                amount,
+                balanceBefore: Number(wallet.balance),
+                balanceAfter: Number(wallet.balance), // Balance doesn't change until PAID
+                description: 'Depósito via PIX (Aguardando Pagamento)',
+                metadata: { txId }, // Crucial for sync later
+            }
+        });
+
         this.logger.log(`Deposit QR created: userId=${userId}, txId=${txId}, amount=R$${amount}`);
 
         return {
@@ -164,6 +179,7 @@ export class PixService {
                     balanceBefore: Number(currentWallet.balance),
                     balanceAfter: newBalance,
                     description: isSandbox ? `Saque PIX Automático (Sandbox) → ${pixKey}` : `Saque PIX → ${pixKey}`,
+                    referenceId: txId, // Store txId as referenceId for easy lookup
                     metadata: { pixKey, txId },
                 },
             });
@@ -214,7 +230,7 @@ export class PixService {
 
             // Sync WalletTransaction status to CONFIRMED
             const wTxInitiate = await this.prisma.walletTransaction.findFirst({
-                where: { metadata: { path: ['txId'], equals: txId } }
+                where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
             });
             if (wTxInitiate) {
                 await this.prisma.walletTransaction.update({
@@ -237,7 +253,7 @@ export class PixService {
 
             // Sync WalletTransaction status
             const wTxConfirm = await this.prisma.walletTransaction.findFirst({
-                where: { metadata: { path: ['txId'], equals: txId } }
+                where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
             });
             if (wTxConfirm) {
                 await this.prisma.walletTransaction.update({
@@ -480,18 +496,37 @@ export class PixService {
                     data: { balance: newBalance },
                 });
 
-                await tx.walletTransaction.create({
-                    data: {
-                        walletId: pixTx.walletId,
-                        type: TransactionType.DEPOSIT,
-                        status: TransactionStatus.COMPLETED,
-                        amount,
-                        balanceBefore: Number(wallet.balance),
-                        balanceAfter: newBalance,
-                        description: 'Depósito via PIX',
-                        referenceId: txId,
-                    },
+                // Update or Create WalletTransaction record
+                const walletTx = await tx.walletTransaction.findFirst({
+                    where: { metadata: { path: ['txId'], equals: txId } }
                 });
+
+                if (walletTx) {
+                    await tx.walletTransaction.update({
+                        where: { id: walletTx.id },
+                        data: {
+                            status: TransactionStatus.COMPLETED,
+                            balanceBefore: Number(wallet.balance),
+                            balanceAfter: newBalance,
+                            description: 'Depósito via PIX (Confirmado)',
+                            referenceId: txId,
+                        }
+                    });
+                } else {
+                    await tx.walletTransaction.create({
+                        data: {
+                            walletId: pixTx.walletId,
+                            type: TransactionType.DEPOSIT,
+                            status: TransactionStatus.COMPLETED,
+                            amount,
+                            balanceBefore: Number(wallet.balance),
+                            balanceAfter: newBalance,
+                            description: 'Depósito via PIX',
+                            referenceId: txId,
+                            metadata: { txId },
+                        },
+                    });
+                }
 
                     await tx.pixTransaction.update({
                         where: { txId: pixTx.txId },
@@ -502,16 +537,8 @@ export class PixService {
                         },
                     });
 
-                    // Update WalletTransaction status to COMPLETED
-                    const wTx = await tx.walletTransaction.findFirst({
-                        where: { metadata: { path: ['txId'], equals: txId } }
-                    });
-                    if (wTx) {
-                        await tx.walletTransaction.update({
-                            where: { id: wTx.id },
-                            data: { status: TransactionStatus.COMPLETED }
-                        });
-                    }
+                    // WalletTransaction already updated above within the transaction block
+
                 });
 
             this.logger.log(`Deposit confirmed: txId=${txId}, amount=R$${pixTx.amount}`);

@@ -23,7 +23,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
     PENDING: { label: 'Pendente', color: 'badge-warn' },
     CONFIRMED: { label: 'Confirmado', color: 'badge-accent' },
     PAID: { label: 'Pago', color: 'badge-yes' },
-    COMPLETED: { label: 'Concluído', color: 'badge-yes' },
+    COMPLETED: { label: 'Pago', color: 'badge-yes' },
     FAILED: { label: 'Falhou', color: 'badge-no' },
     CANCELLED: { label: 'Cancelado', color: 'badge-neutral' },
     REFUNDED: { label: 'Estornado', color: 'badge-warn' },
@@ -585,7 +585,9 @@ export default function WalletPage() {
                                             {formatBRL(tx.amount)}
                                         </p>
                                         <span className={`badge text-[10px] ${STATUS_MAP[tx.status]?.color || 'badge-neutral'}`}>
-                                            {STATUS_MAP[tx.status]?.label || tx.status}
+                                            {tx.type === 'DEPOSIT' || tx.type === 'WITHDRAWAL' 
+                                                ? (tx.status === 'COMPLETED' ? 'Pago' : STATUS_MAP[tx.status]?.label || tx.status)
+                                                : (STATUS_MAP[tx.status]?.label || tx.status)}
                                         </span>
                                     </div>
                                 </div>

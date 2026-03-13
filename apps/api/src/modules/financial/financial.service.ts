@@ -127,8 +127,19 @@ export class FinancialService {
       if (walletTx) {
         await tx.walletTransaction.update({
           where: { id: walletTx.id },
-          data: { status: 'COMPLETED' },
+          data: { status: TransactionStatus.COMPLETED },
         });
+      } else {
+        // Fallback for older transactions without metadata path match
+        const fallbackTx = await tx.walletTransaction.findFirst({
+          where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
+        });
+        if (fallbackTx) {
+          await tx.walletTransaction.update({
+            where: { id: fallbackTx.id },
+            data: { status: TransactionStatus.COMPLETED },
+          });
+        }
       }
     });
 
@@ -163,19 +174,37 @@ export class FinancialService {
         data: { balance: newBalance },
       });
 
-      // Create wallet transaction record
-      await tx.walletTransaction.create({
-        data: {
-          walletId: pixTx.walletId,
-          type: TransactionType.DEPOSIT,
-          status: TransactionStatus.COMPLETED,
-          amount,
-          balanceBefore: Number(wallet.balance),
-          balanceAfter: newBalance,
-          description: 'Depósito via PIX (confirmado manualmente pelo admin)',
-          referenceId: txId,
-        },
+      // Update or Create WalletTransaction record
+      const walletTx = await tx.walletTransaction.findFirst({
+        where: { metadata: { path: ['txId'], equals: txId } }
       });
+
+      if (walletTx) {
+        await tx.walletTransaction.update({
+            where: { id: walletTx.id },
+            data: {
+                status: TransactionStatus.COMPLETED,
+                balanceBefore: Number(wallet.balance),
+                balanceAfter: newBalance,
+                description: 'Depósito via PIX (Confirmado Admin)',
+                referenceId: txId,
+            }
+        });
+      } else {
+        await tx.walletTransaction.create({
+            data: {
+                walletId: pixTx.walletId,
+                type: TransactionType.DEPOSIT,
+                status: TransactionStatus.COMPLETED,
+                amount,
+                balanceBefore: Number(wallet.balance),
+                balanceAfter: newBalance,
+                description: 'Depósito via PIX (Manual)',
+                referenceId: txId,
+                metadata: { txId },
+            },
+        });
+      }
 
       // Update PIX transaction status
       await tx.pixTransaction.update({
@@ -228,10 +257,24 @@ export class FinancialService {
         await tx.walletTransaction.update({
           where: { id: walletTx.id },
           data: {
-            status: 'FAILED',
+            status: TransactionStatus.FAILED,
             description: `Rejeitado: ${reason || 'Sem motivo informado'}`,
           },
         });
+      } else {
+        // Fallback lookup
+        const fallbackTx = await tx.walletTransaction.findFirst({
+          where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
+        });
+        if (fallbackTx) {
+          await tx.walletTransaction.update({
+            where: { id: fallbackTx.id },
+            data: {
+              status: TransactionStatus.FAILED,
+              description: `Rejeitado: ${reason || 'Sem motivo informado'}`,
+            },
+          });
+        }
       }
     });
 

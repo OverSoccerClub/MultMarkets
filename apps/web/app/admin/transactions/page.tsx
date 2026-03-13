@@ -28,7 +28,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = 
     PENDING: { label: 'Pendente', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20', icon: Clock },
     CONFIRMED: { label: 'Confirmado', color: 'text-blue-400 bg-blue-400/10 border-blue-400/20', icon: CheckCircle2 },
     PAID: { label: 'Pago', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle2 },
-    COMPLETED: { label: 'Concluído', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle2 },
+    COMPLETED: { label: 'Pago', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20', icon: CheckCircle2 },
     FAILED: { label: 'Falhou', color: 'text-rose-400 bg-rose-400/10 border-rose-400/20', icon: XCircle },
     CANCELLED: { label: 'Cancelado', color: 'text-white/40 bg-white/5 border-white/10', icon: XCircle },
 };
