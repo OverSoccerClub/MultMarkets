@@ -234,24 +234,47 @@ export class BankiziService {
     // ── Transaction Status Queries ─────────────────────────────────────
     async getCashInStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders(customConfig);
-        let response: Response;
-        try {
-            // For dynamic QR codes, the status check is usually on the same base path
-            response = await fetch(`${config.baseUrl}/pix/qrcode/dynamic/${txId}`, {
-                method: 'GET',
-                headers,
-            });
-        } catch (error: any) {
-            throw new BadGatewayException(`Falha de rede ao consultar status de depósito: ${error.message}`);
+        
+        // List of candidate endpoints for Bankizi status check
+        // We will try them in order until one doesn't 404
+        const candidates = [
+            `/pix/qrcode/dynamic/${txId}`,
+            `/pix/transaction/cashin/${txId}`,
+            `/pix/transaction/${txId}`,
+            `/pix/transaction/cashin/txid/${txId}`
+        ];
+
+        let lastError: any = null;
+
+        for (const path of candidates) {
+            try {
+                this.logger.debug(`Trying Bankizi status path: ${path}`);
+                const response = await fetch(`${config.baseUrl}${path}`, {
+                    method: 'GET',
+                    headers,
+                });
+
+                if (response.ok) {
+                    const jsonRes = await response.json();
+                    this.logger.log(`Bankizi status found at ${path}: ${JSON.stringify(jsonRes)}`);
+                    return jsonRes.data || jsonRes;
+                }
+
+                if (response.status !== 404) {
+                    // If it's not a 404, it might be a real error (401, 500), so we stop and throw
+                    const errorText = await response.text();
+                    throw new Error(`Bankizi error at ${path}: ${response.status} - ${errorText}`);
+                }
+                
+                // If it's 404, we continue to the next candidate
+                this.logger.warn(`Bankizi status path ${path} returned 404`);
+            } catch (error: any) {
+                this.logger.error(`Error trying path ${path}: ${error.message}`);
+                lastError = error;
+            }
         }
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to get cash-in status: ${response.status} - ${errorText}`);
-        }
-
-        const jsonRes = await response.json();
-        return jsonRes.data || jsonRes;
+        throw new Error(lastError?.message || `Failed to find status for txId ${txId} across all known Bankizi endpoints.`);
     }
 
     async getCashOutStatus(txId: string, customConfig?: any): Promise<TransactionStatusResponse> {
