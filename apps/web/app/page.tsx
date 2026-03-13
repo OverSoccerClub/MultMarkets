@@ -9,7 +9,6 @@ import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, useSc
 
 import { FeaturedMarket } from '@/components/markets/FeaturedMarket';
 import { SidebarWidgets } from '@/components/markets/SidebarWidgets';
-import { useSearchParams, useRouter } from 'next/navigation';
 
 const CATEGORIES = [
     { value: '', label: 'Todos' },
@@ -28,19 +27,16 @@ const SORT_OPTIONS = [
 ];
 
 export default function HomePage() {
-    const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-    const categoryQuery = searchParams?.get('category') || '';
-
     const { isAuthenticated } = useAuthStore();
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState('totalVolume');
+    const [categoryQuery, setCategoryQuery] = useState('');
 
     const { data: markets = [], isLoading } = useQuery({
         queryKey: ['markets', { search, category: categoryQuery, sort }],
         queryFn: () => marketsApi.list({ search, categorySlug: categoryQuery || undefined, sortBy: sort }),
     });
 
-    const [filter, setFilter] = useState('trending');
     const containerRef = useRef<HTMLDivElement>(null);
 
     // 🌊 Parallax & 3D Tilt Mouse Effect
@@ -71,8 +67,6 @@ export default function HomePage() {
     const rotateX = useTransform(springY, [-25, 25], [5, -5]);
     const rotateY = useTransform(springX, [-25, 25], [-5, 5]);
 
-    const router = useRouter();
-
     return (
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20 space-y-10 mt-8" ref={containerRef}>
 
@@ -92,12 +86,7 @@ export default function HomePage() {
                 {CATEGORIES.map((cat) => (
                     <button
                         key={cat.value}
-                        onClick={() => {
-                            const params = new URLSearchParams(window.location.search);
-                            if (cat.value) params.set('category', cat.value);
-                            else params.delete('category');
-                            router.push(`/?${params.toString()}`);
-                        }}
+                        onClick={() => setCategoryQuery(cat.value)}
                         className={`px-5 py-2.5 rounded-full whitespace-nowrap text-[13px] font-bold transition-all ${
                             (categoryQuery === cat.value) 
                                 ? 'bg-white text-black' 
