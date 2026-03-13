@@ -272,6 +272,9 @@ export class PixService {
     }
 
     // ── Check Status ───────────────────────────────────────────────────
+    // Bankizi does NOT have a status polling endpoint for dynamic QR codes.
+    // Payment confirmation is received exclusively via webhook (POST /webhooks/bankizi).
+    // This method simply returns the current DB status.
     async getTransactionStatus(userId: string, txId: string) {
         const wallet = await this.prisma.wallet.findUniqueOrThrow({
             where: { userId },
@@ -283,26 +286,6 @@ export class PixService {
 
         if (!pixTx) throw new NotFoundException('Transação não encontrada');
         if (pixTx.walletId !== wallet.id) throw new ForbiddenException('Acesso negado');
-
-        // Optionally sync status with active gateway
-        if (pixTx.status === PixTransactionStatus.PENDING || pixTx.status === PixTransactionStatus.CONFIRMED) {
-            try {
-                const { provider, config } = await this.getProviderInfo();
-                this.logger.debug(`Polling PIX status for userId=${userId}, txId=${txId}, bankiziTxId=${pixTx.bankiziTxId}`);
-                const statusRes = await provider.getStatus(txId, pixTx.type as 'CASH_IN' | 'CASH_OUT', { 
-                    ...config, 
-                    bankiziTxId: pixTx.bankiziTxId 
-                });
-
-                if (statusRes.status === 'PAID') {
-                    // Update if gateway says it's paid
-                    await this.handlePaymentConfirmation(txId, pixTx.type as 'CASH_IN' | 'CASH_OUT');
-                    return this.prisma.pixTransaction.findUnique({ where: { txId } });
-                }
-            } catch (e) {
-                this.logger.warn(`Could not sync status from gateway for txId=${txId}: ${e.message}`);
-            }
-        }
 
         return {
             txId: pixTx.txId,
@@ -319,11 +302,12 @@ export class PixService {
 
     // ── Webhook Handler ────────────────────────────────────────────────
     async handleWebhook(event: string, data: any) {
-        this.logger.log(`Webhook received: event=${event}, txId=${data?.txId}`);
+        this.logger.log(`Webhook received: event=${event}, data=${JSON.stringify(data)}`);
 
-        const txId = data?.txId;
+        // Try multiple fields that Bankizi might send
+        const txId = data?.txId || data?.transactionId || data?.tx_id;
         if (!txId) {
-            this.logger.warn('Webhook missing txId');
+            this.logger.warn('Webhook missing txId/transactionId');
             return;
         }
 
@@ -335,14 +319,18 @@ export class PixService {
         } else if ((event === 'PIX_OUT' || event === 'CASH_OUT' || event === 'CASHOUT' || event === 'WITHDRAW') && isPaid) {
             await this.handlePaymentConfirmation(txId, 'CASH_OUT');
         } else {
-            this.logger.log(`Webhook event not actionable: event=${event}, status=${data.status}`);
+            this.logger.log(`Webhook event not actionable: event=${event}, status=${status}`);
         }
     }
 
     private async handlePaymentConfirmation(txId: string, type: 'CASH_IN' | 'CASH_OUT') {
-        const pixTx = await this.prisma.pixTransaction.findUnique({ where: { txId } });
+        // Try to find by our internal txId first, then fallback to bankiziTxId
+        let pixTx = await this.prisma.pixTransaction.findUnique({ where: { txId } });
         if (!pixTx) {
-            this.logger.warn(`PixTransaction not found for txId=${txId}`);
+            pixTx = await this.prisma.pixTransaction.findFirst({ where: { bankiziTxId: txId } });
+        }
+        if (!pixTx) {
+            this.logger.warn(`PixTransaction not found for txId/bankiziTxId=${txId}`);
             return;
         }
 
