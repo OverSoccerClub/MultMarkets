@@ -69,12 +69,12 @@ export default function AdminFindingsPage() {
     console.log("DRAFTS DATA:", draftsData, "MAPPED DRAFTS:", drafts);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-20">
             {/* 🚀 Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight uppercase">Descobertas AI</h2>
-                    <p className="text-white/40 text-sm mt-1">Revise e aprove mercados gerados automaticamente por inteligência artificial.</p>
+                    <h1 className="text-2xl font-black uppercase tracking-tight">Descobertas <span className="text-accent-500">AI</span></h1>
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Revise e aprove mercados gerados por inteligência artificial</p>
                 </div>
                 <div className="flex items-center gap-3 px-6 py-3 bg-accent-500/10 border border-accent-500/20 rounded-2xl">
                     <Sparkles size={16} className="text-accent-400 animate-pulse" />

@@ -89,12 +89,12 @@ export default function AdminBotsPage() {
     });
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-20">
             {/* 🚀 Header Actions */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight uppercase">Configurações de Bots</h2>
-                    <p className="text-white/40 text-sm mt-1">Gerencie as fontes de dados para predições automáticas.</p>
+                    <h1 className="text-2xl font-black uppercase tracking-tight">Configurações de <span className="text-accent-500">Bots</span></h1>
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Gerencie as fontes de dados para predições automáticas</p>
                 </div>
                 <div className="flex gap-4">
                     <button

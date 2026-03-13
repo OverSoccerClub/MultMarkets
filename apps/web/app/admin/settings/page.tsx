@@ -120,11 +120,13 @@ export default function AdminSettingsPage() {
     const tradeFeeSetting = settings.find((s: any) => s.key === 'PLATFORM_TRADE_FEE') || { key: 'PLATFORM_TRADE_FEE', value: '0.02' };
 
     return (
-        <div className="max-w-5xl space-y-10 pb-20">
+        <div className="space-y-8 pb-20">
             {/* Header */}
-            <div>
-                <h2 className="text-4xl font-black tracking-tighter uppercase text-white mb-2">Configurações</h2>
-                <p className="text-white/40 text-sm">Gerencie o motor econômico e as integrações financeiras da plataforma.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black uppercase tracking-tight">Configurações <span className="text-accent-500">Gerais</span></h1>
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Gerencie o motor econômico e as integrações financeiras</p>
+                </div>
             </div>
 
             {/* Custom Tabs */}

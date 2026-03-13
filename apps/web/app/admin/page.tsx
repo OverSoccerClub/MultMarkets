@@ -30,11 +30,13 @@ export default function AdminDashboardPage() {
     ];
 
     return (
-        <div className="space-y-10">
+        <div className="space-y-8 pb-20">
             {/* 🚀 Welcome Header */}
-            <div>
-                <h2 className="text-3xl font-black tracking-tight uppercase">Dashboard Visão Geral</h2>
-                <p className="text-white/40 text-sm mt-1">Bem-vindo ao centro de comando MultMarkets. Aqui está o resumo operacional atual.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-black uppercase tracking-tight">Dashboard <span className="text-accent-500">Visão Geral</span></h1>
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Bem-vindo ao centro de comando MultMarkets</p>
+                </div>
             </div>
 
             {/* 📊 Stats Grid */}

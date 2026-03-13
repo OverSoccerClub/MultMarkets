@@ -105,12 +105,12 @@ export default function AdminMarketsPage() {
         : markets;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-20">
             {/* 🚀 Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight uppercase">Gestão de Mercados</h2>
-                    <p className="text-white/40 text-sm mt-1">Gerencie todos os mercados preditivos da plataforma.</p>
+                    <h1 className="text-2xl font-black uppercase tracking-tight">Gestão de <span className="text-accent-500">Mercados</span></h1>
+                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Gerencie todos os mercados preditivos da plataforma</p>
                 </div>
 
                 <div className="flex items-center gap-3">
