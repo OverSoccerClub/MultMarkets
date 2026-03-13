@@ -122,7 +122,7 @@ export default function LoginPage() {
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Terminal ID (E-mail)</label>
                             <div className="relative group">
-                                <div className="absolute inset-0 bg-accent-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-accent-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                                 <Mail size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors group-focus-within:text-accent-500" />
                                 <input
                                     {...register('email')}
@@ -144,7 +144,7 @@ export default function LoginPage() {
                                 </Link>
                             </div>
                             <div className="relative group">
-                                <div className="absolute inset-0 bg-accent-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                                <div className="absolute inset-0 bg-accent-500/5 rounded-xl blur-md opacity-0 group-focus-within:opacity-100 transition-opacity pointer-events-none" />
                                 <Lock size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors group-focus-within:text-accent-500" />
                                 <input
                                     {...register('password')}
