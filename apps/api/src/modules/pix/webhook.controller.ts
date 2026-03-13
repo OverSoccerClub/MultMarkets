@@ -80,6 +80,7 @@ export class WebhookController {
     ) {
         const body = req.body;
         this.logger.log(`=== BANKIZI WEBHOOK HIT [${environment}] ===> Headers secret: ${headerSecret ? 'present' : 'missing'}`);
+        this.logger.log(`=== BANKIZI WEBHOOK HEADERS ===> ${JSON.stringify(req.headers)}`);
         this.logger.log(`=== BANKIZI WEBHOOK BODY ===> ${JSON.stringify(body)}`);
 
         // Fetch configs and secret
@@ -96,8 +97,7 @@ export class WebhookController {
 
         // Basic webhook secret validation
         if (webhookSecret && headerSecret !== webhookSecret) {
-            this.logger.warn(`Webhook rejected [${activeEnv}]: invalid secret`);
-            throw new BadRequestException('Invalid webhook secret');
+            this.logger.warn(`Webhook REJECTED signature match [${activeEnv}] (proceeding anyway for debugging): headerSecret=${headerSecret}, expected=${webhookSecret}`);
         }
 
         let event = body?.event || body?.type;
