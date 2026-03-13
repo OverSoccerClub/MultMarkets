@@ -572,7 +572,9 @@ export default function WalletPage() {
                                             <div className="flex items-center gap-2">
                                                 <p className="text-[10px] text-[var(--text-muted)]">{formatDate(tx.createdAt)}</p>
                                                 <span className="text-[10px] text-white/20">•</span>
-                                                <p className="text-[10px] font-mono text-white/20 uppercase tracking-tighter" title={tx.id}>ID: {tx.id.substring(0, 8)}...</p>
+                                                <p className="text-[10px] font-mono text-white/20 uppercase tracking-tighter" title={tx.referenceId || tx.metadata?.txId || tx.id}>
+                                                    ID: { (tx.referenceId || tx.metadata?.txId || tx.id).substring(0, 12) }...
+                                                </p>
                                             </div>
                                         </div>
                                     </div>

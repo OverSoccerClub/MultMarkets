@@ -20,6 +20,39 @@ export class PixService {
         private walletService: WalletService,
     ) { }
 
+    /**
+     * Robustly synchronizes PixTransaction status to its corresponding WalletTransaction.
+     * Uses dual lookup: referenceId OR metadata.path(['txId']).
+     */
+    private async syncWalletStatus(tx: any, txId: string, status: TransactionStatus) {
+        const walletId = tx.walletId;
+
+        // Try primary lookup by referenceId
+        let walletTx = await tx.walletTransaction.findFirst({
+            where: { referenceId: txId, walletId }
+        });
+
+        // Fallback: lookup by metadata.txId
+        if (!walletTx) {
+            walletTx = await tx.walletTransaction.findFirst({
+                where: { 
+                    walletId,
+                    metadata: { path: ['txId'], equals: txId }
+                }
+            });
+        }
+
+        if (walletTx) {
+            await tx.walletTransaction.update({
+                where: { id: walletTx.id },
+                data: { status }
+            });
+            this.logger.log(`Synced WalletTransaction: id=${walletTx.id}, txId=${txId}, status=${status}`);
+        } else {
+            this.logger.warn(`Could not find WalletTransaction for sync: txId=${txId}`);
+        }
+    }
+
     private async getProviderInfo() {
         const gateway = await this.gatewaysService.getActiveGateway(GatewayType.PIX);
         const provider = this.providerFactory.getProvider(gateway.provider);
@@ -228,16 +261,8 @@ export class PixService {
                 },
             });
 
-            // Sync WalletTransaction status to CONFIRMED
-            const wTxInitiate = await this.prisma.walletTransaction.findFirst({
-                where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
-            });
-            if (wTxInitiate) {
-                await this.prisma.walletTransaction.update({
-                    where: { id: wTxInitiate.id },
-                    data: { status: TransactionStatus.CONFIRMED }
-                });
-            }
+            // Sync WalletTransaction status to CONFIRMED using helper
+            await this.syncWalletStatus(this.prisma, txId, TransactionStatus.CONFIRMED);
 
             // Step 2: Confirm withdrawal
             const confirmResponse = await provider.confirmWithdrawal(txId, config);
@@ -251,20 +276,12 @@ export class PixService {
                 },
             });
 
-            // Sync WalletTransaction status
-            const wTxConfirm = await this.prisma.walletTransaction.findFirst({
-                where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
-            });
-            if (wTxConfirm) {
-                await this.prisma.walletTransaction.update({
-                    where: { id: wTxConfirm.id },
-                    data: { 
-                        status: finalTxStatus === 'PAID' 
-                            ? TransactionStatus.COMPLETED 
-                            : TransactionStatus.CONFIRMED 
-                    }
-                });
-            }
+            // Sync WalletTransaction status using helper
+            const finalWalletStatus = finalTxStatus === 'PAID' 
+                ? TransactionStatus.COMPLETED 
+                : TransactionStatus.CONFIRMED;
+            
+            await this.syncWalletStatus(this.prisma, txId, finalWalletStatus);
 
             this.logger.log(`Withdrawal processed: userId=${userId}, txId=${txId}, amount=R$${amount}`);
 
@@ -292,20 +309,8 @@ export class PixService {
                     data: { status: 'FAILED' },
                 });
 
-                // Update wallet transaction status
-                const walletTx = await tx.walletTransaction.findFirst({
-                    where: {
-                        walletId: wallet.id,
-                        type: TransactionType.WITHDRAWAL,
-                        metadata: { path: ['txId'], equals: txId },
-                    },
-                });
-                if (walletTx) {
-                    await tx.walletTransaction.update({
-                        where: { id: walletTx.id },
-                        data: { status: TransactionStatus.FAILED },
-                    });
-                }
+                // Update wallet transaction status via helper
+                await this.syncWalletStatus(tx, txId, TransactionStatus.FAILED);
             });
 
             throw new BadRequestException(
@@ -496,35 +501,21 @@ export class PixService {
                     data: { balance: newBalance },
                 });
 
-                // Update or Create WalletTransaction record
-                const walletTx = await tx.walletTransaction.findFirst({
-                    where: { metadata: { path: ['txId'], equals: txId } }
+                // Sync WalletTransaction status via helper
+                await this.syncWalletStatus(tx, txId, TransactionStatus.COMPLETED);
+                
+                // Update balance fields for COMPLETED status
+                const finalWalletTx = await tx.walletTransaction.findFirst({
+                    where: { referenceId: txId, walletId: pixTx.walletId }
                 });
-
-                if (walletTx) {
+                if (finalWalletTx) {
                     await tx.walletTransaction.update({
-                        where: { id: walletTx.id },
+                        where: { id: finalWalletTx.id },
                         data: {
-                            status: TransactionStatus.COMPLETED,
                             balanceBefore: Number(wallet.balance),
                             balanceAfter: newBalance,
                             description: 'Depósito via PIX (Confirmado)',
-                            referenceId: txId,
                         }
-                    });
-                } else {
-                    await tx.walletTransaction.create({
-                        data: {
-                            walletId: pixTx.walletId,
-                            type: TransactionType.DEPOSIT,
-                            status: TransactionStatus.COMPLETED,
-                            amount,
-                            balanceBefore: Number(wallet.balance),
-                            balanceAfter: newBalance,
-                            description: 'Depósito via PIX',
-                            referenceId: txId,
-                            metadata: { txId },
-                        },
                     });
                 }
 
@@ -550,20 +541,8 @@ export class PixService {
                     data: { status: 'PAID', paidAt: new Date() },
                 });
 
-                // Update wallet transaction to completed
-                const walletTx = await tx.walletTransaction.findFirst({
-                    where: {
-                        walletId: pixTx.walletId,
-                        type: TransactionType.WITHDRAWAL,
-                        metadata: { path: ['txId'], equals: txId },
-                    },
-                });
-                if (walletTx) {
-                    await tx.walletTransaction.update({
-                        where: { id: walletTx.id },
-                        data: { status: TransactionStatus.COMPLETED },
-                    });
-                }
+                // Update wallet transaction to completed via helper
+                await this.syncWalletStatus(tx, txId, TransactionStatus.COMPLETED);
             });
 
             this.logger.log(`Withdrawal confirmed: txId=${txId}, amount=R$${pixTx.amount}`);

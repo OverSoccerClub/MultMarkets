@@ -10,6 +10,37 @@ export class FinancialService {
 
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Robustly synchronizes PixTransaction status to its corresponding WalletTransaction.
+   * Uses dual lookup: referenceId OR metadata.path(['txId']).
+   */
+  private async syncWalletStatus(tx: any, txId: string, walletId: string, status: TransactionStatus) {
+    // Try primary lookup by referenceId
+    let walletTx = await tx.walletTransaction.findFirst({
+      where: { referenceId: txId, walletId }
+    });
+
+    // Fallback: lookup by metadata.txId
+    if (!walletTx) {
+      walletTx = await tx.walletTransaction.findFirst({
+        where: { 
+          walletId,
+          metadata: { path: ['txId'], equals: txId }
+        }
+      });
+    }
+
+    if (walletTx) {
+      await tx.walletTransaction.update({
+        where: { id: walletTx.id },
+        data: { status }
+      });
+      this.logger.log(`Synced WalletTransaction: id=${walletTx.id}, txId=${txId}, status=${status}`);
+    } else {
+      this.logger.warn(`Could not find WalletTransaction for sync: txId=${txId}`);
+    }
+  }
+
   async listTransactions(
     page = 1, 
     limit = 20, 
@@ -116,31 +147,8 @@ export class FinancialService {
         },
       });
 
-      // Update WalletTransaction if exists
-      const walletTx = await tx.walletTransaction.findFirst({
-        where: {
-          walletId: pixTx.walletId,
-          metadata: { path: ['txId'], equals: txId },
-        },
-      });
-
-      if (walletTx) {
-        await tx.walletTransaction.update({
-          where: { id: walletTx.id },
-          data: { status: TransactionStatus.COMPLETED },
-        });
-      } else {
-        // Fallback for older transactions without metadata path match
-        const fallbackTx = await tx.walletTransaction.findFirst({
-          where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
-        });
-        if (fallbackTx) {
-          await tx.walletTransaction.update({
-            where: { id: fallbackTx.id },
-            data: { status: TransactionStatus.COMPLETED },
-          });
-        }
-      }
+      // Sync WalletTransaction status using helper
+      await this.syncWalletStatus(tx, txId, pixTx.walletId, TransactionStatus.COMPLETED);
     });
 
     this.logger.log(`Withdrawal ${txId} manually approved by admin`);
@@ -175,22 +183,23 @@ export class FinancialService {
       });
 
       // Update or Create WalletTransaction record
-      const walletTx = await tx.walletTransaction.findFirst({
-        where: { metadata: { path: ['txId'], equals: txId } }
+      await this.syncWalletStatus(tx, txId, pixTx.walletId, TransactionStatus.COMPLETED);
+      
+      // Update balance fields for COMPLETED status
+      const completedTx = await tx.walletTransaction.findFirst({
+        where: { referenceId: txId, walletId: pixTx.walletId }
       });
-
-      if (walletTx) {
+      if (completedTx) {
         await tx.walletTransaction.update({
-            where: { id: walletTx.id },
+            where: { id: completedTx.id },
             data: {
-                status: TransactionStatus.COMPLETED,
                 balanceBefore: Number(wallet.balance),
                 balanceAfter: newBalance,
                 description: 'Depósito via PIX (Confirmado Admin)',
-                referenceId: txId,
             }
         });
       } else {
+        // Fallback create if not found even with helper lookup
         await tx.walletTransaction.create({
             data: {
                 walletId: pixTx.walletId,
@@ -245,36 +254,20 @@ export class FinancialService {
         data: { balance: { increment: pixTx.amount } },
       });
 
-      // Update WalletTransaction
-      const walletTx = await tx.walletTransaction.findFirst({
-        where: {
-          walletId: pixTx.walletId,
-          metadata: { path: ['txId'], equals: txId },
-        },
+      // Update WalletTransaction status using helper
+      await this.syncWalletStatus(tx, txId, pixTx.walletId, TransactionStatus.FAILED);
+      
+      // Update description with reason
+      const failedTx = await tx.walletTransaction.findFirst({
+        where: { referenceId: txId, walletId: pixTx.walletId }
       });
-
-      if (walletTx) {
+      if (failedTx) {
         await tx.walletTransaction.update({
-          where: { id: walletTx.id },
+          where: { id: failedTx.id },
           data: {
-            status: TransactionStatus.FAILED,
             description: `Rejeitado: ${reason || 'Sem motivo informado'}`,
           },
         });
-      } else {
-        // Fallback lookup
-        const fallbackTx = await tx.walletTransaction.findFirst({
-          where: { referenceId: txId, type: TransactionType.WITHDRAWAL }
-        });
-        if (fallbackTx) {
-          await tx.walletTransaction.update({
-            where: { id: fallbackTx.id },
-            data: {
-              status: TransactionStatus.FAILED,
-              description: `Rejeitado: ${reason || 'Sem motivo informado'}`,
-            },
-          });
-        }
       }
     });
 
