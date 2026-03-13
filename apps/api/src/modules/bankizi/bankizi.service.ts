@@ -235,6 +235,8 @@ export class BankiziService {
     async getCashInSmartStatus(internalTxId: string, bankiziTxId?: string, customConfig?: any): Promise<TransactionStatusResponse> {
         const { headers, config } = await this.getHeaders(customConfig);
         
+        this.logger.debug(`Bankizi Config: baseUrl=${config.baseUrl}, environment=${config.environment}`);
+
         // Accumulate all IDs we might want to try
         const idsToTry = [internalTxId];
         if (bankiziTxId && bankiziTxId !== internalTxId) {
@@ -242,26 +244,36 @@ export class BankiziService {
         }
 
         // List of candidate endpoints for Bankizi status check
-        const pathTemplates = [
-            '/pix/qrcode/dynamic/{id}',
-            '/pix/transaction/cashin/{id}',
-            '/pix/transaction/{id}',
-            '/pix/transaction/cashin/txid/{id}',
-            '/pix/transaction/txId/{id}',
-            '/pix/qrcode/dynamic/status/{id}'
+        // We try paths and also query param variations
+        const candidates: { path: string, method: string, useQuery?: boolean }[] = [
+            { path: '/pix/qrcode/dynamic/{id}', method: 'GET' },
+            { path: '/pix/transaction/cashin/{id}', method: 'GET' },
+            { path: '/pix/transaction/{id}', method: 'GET' },
+            { path: '/pix/transaction/cashin/txid/{id}', method: 'GET' },
+            { path: '/pix/transaction/txId/{id}', method: 'GET' },
+            { path: '/pix/qrcode/dynamic/status/{id}', method: 'GET' },
+            { path: '/pix/qrcode/dynamic/{id}/status', method: 'GET' },
+            { path: '/pix/status/{id}', method: 'GET' },
+            { path: '/pix/cash-in/{id}', method: 'GET' },
+            { path: '/pix/cashin/{id}', method: 'GET' },
+            { path: '/pix/qrcode/{id}', method: 'GET' },
+            { path: '/pix/qrcode/{id}/status', method: 'GET' },
+            { path: '/pix/transaction?txId={id}', method: 'GET', useQuery: true },
+            { path: '/pix/qrcode/dynamic?txId={id}', method: 'GET', useQuery: true },
+            { path: '/pix/status?txId={id}', method: 'GET', useQuery: true }
         ];
 
         let lastError: any = null;
 
         for (const id of idsToTry) {
-            for (const template of pathTemplates) {
-                const path = template.replace('{id}', id);
+            for (const cand of candidates) {
+                const path = cand.path.replace('{id}', id);
                 const fullUrl = `${config.baseUrl}${path}`;
                 
                 try {
                     this.logger.debug(`Probing Bankizi status: ${fullUrl}`);
                     const response = await fetch(fullUrl, {
-                        method: 'GET',
+                        method: cand.method as any,
                         headers,
                     });
 
