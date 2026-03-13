@@ -2,6 +2,8 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TransactionStatus, TransactionType, PixTransactionStatus } from '@prisma/client';
 
+import { TimeUtils } from 'src/common/utils/time.utils';
+
 @Injectable()
 export class FinancialService {
   private readonly logger = new Logger(FinancialService.name);
@@ -34,14 +36,8 @@ export class FinancialService {
           }),
           ...((filters.startDate || filters.endDate) && {
             createdAt: {
-              ...(filters.startDate && { gte: new Date(filters.startDate) }),
-              ...(filters.endDate && { 
-                lte: (() => {
-                  const d = new Date(filters.endDate);
-                  d.setHours(23, 59, 59, 999);
-                  return d;
-                })() 
-              }),
+              ...(filters.startDate && { gte: TimeUtils.getStartOfDayBR(filters.startDate) }),
+              ...(filters.endDate && { lte: TimeUtils.getEndOfDayBR(filters.endDate) }),
             },
           }),
         },

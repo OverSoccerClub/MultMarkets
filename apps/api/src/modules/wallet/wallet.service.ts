@@ -6,6 +6,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma, TransactionType, TransactionStatus } from '@prisma/client';
 import { GatewaysService } from '../gateways/gateways.service';
 
+import { TimeUtils } from 'src/common/utils/time.utils';
+
 @Injectable()
 export class WalletService {
     private readonly logger = new Logger(WalletService.name);
@@ -245,14 +247,8 @@ export class WalletService {
             }),
             ...((filters.startDate || filters.endDate) && {
                 createdAt: {
-                    ...(filters.startDate && { gte: new Date(filters.startDate) }),
-                    ...(filters.endDate && { 
-                        lte: (() => {
-                            const d = new Date(filters.endDate);
-                            d.setHours(23, 59, 59, 999);
-                            return d;
-                        })()
-                    }),
+                    ...(filters.startDate && { gte: TimeUtils.getStartOfDayBR(filters.startDate) }),
+                    ...(filters.endDate && { lte: TimeUtils.getEndOfDayBR(filters.endDate) }),
                 },
             }),
         };
