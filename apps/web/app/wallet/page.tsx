@@ -110,6 +110,7 @@ export default function WalletPage() {
         queryKey: ['wallet'],
         queryFn: walletApi.get,
         retry: false,
+        refetchInterval: 10000,
     });
 
     // ── Transaction history ──────────────────────────────────────────
@@ -125,6 +126,7 @@ export default function WalletPage() {
             endDate: endDate || undefined
         }),
         enabled: !!_hasHydrated && isAuthenticated && activeTab === 'history',
+        refetchInterval: 10000,
     });
 
     // ── PIX Deposit mutation ─────────────────────────────────────────

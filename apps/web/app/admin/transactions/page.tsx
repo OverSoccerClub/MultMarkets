@@ -60,6 +60,7 @@ export default function AdminTransactionsPage() {
             endDate: endDate || undefined
         }),
         enabled: !!_hasHydrated && isAuthenticated,
+        refetchInterval: 10000,
     });
 
     const approveMutation = useMutation({
