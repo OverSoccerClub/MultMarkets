@@ -48,7 +48,7 @@ export default function DashboardPage() {
 
     const { data: transactions = [], isLoading: txLoading } = useQuery({
         queryKey: ['transactions'],
-        queryFn: () => walletApi.transactions(1, 10),
+        queryFn: () => walletApi.transactions({ page: 1, limit: 10 }),
         enabled: isAuthenticated,
         select: (d: any) => d?.items ?? [],
     });

@@ -5,6 +5,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { IsNumber, Min, Max, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { TransactionType, TransactionStatus } from '@prisma/client';
 
 class DepositDto { @ApiProperty() @IsNumber() @Min(10) @Max(50000) amount: number; }
 class WithdrawDto {
@@ -43,7 +44,14 @@ export class WalletController {
         @CurrentUser() user: any,
         @Query('page') page = 1,
         @Query('limit') limit = 20,
+        @Query('type') type?: TransactionType,
+        @Query('status') status?: TransactionStatus,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+        @Query('id') id?: string,
     ) {
-        return this.walletService.getTransactions(user.id, +page, +limit);
+        return this.walletService.getTransactions(user.id, +page, +limit, { 
+            type, status, startDate, endDate, id 
+        });
     }
 }

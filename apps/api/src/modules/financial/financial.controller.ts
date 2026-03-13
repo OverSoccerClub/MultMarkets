@@ -26,8 +26,11 @@ export class FinancialController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
     @Query('status') status?: PixTransactionStatus,
     @Query('type') type?: 'CASH_IN' | 'CASH_OUT',
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('id') id?: string,
   ) {
-    return this.financialService.listTransactions(page, limit, { status, type });
+    return this.financialService.listTransactions(page, limit, { status, type, startDate, endDate, txId: id });
   }
 
   @Patch('transactions/:txId/approve')

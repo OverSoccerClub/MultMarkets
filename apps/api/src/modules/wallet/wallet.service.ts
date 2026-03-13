@@ -217,17 +217,47 @@ export class WalletService {
         });
     }
 
-    async getTransactions(userId: string, page = 1, limit = 20) {
+    async getTransactions(
+        userId: string, 
+        page = 1, 
+        limit = 20,
+        filters: {
+            type?: TransactionType;
+            status?: TransactionStatus;
+            startDate?: string;
+            endDate?: string;
+            id?: string;
+        } = {}
+    ) {
         const wallet = await this.prisma.wallet.findUniqueOrThrow({ where: { userId } });
         const skip = (page - 1) * limit;
 
+        const where: Prisma.WalletTransactionWhereInput = {
+            walletId: wallet.id,
+            ...(filters.type && { type: filters.type }),
+            ...(filters.status && { status: filters.status }),
+            ...(filters.id && {
+                OR: [
+                    { id: { contains: filters.id } },
+                    { referenceId: { contains: filters.id } },
+                    { metadata: { path: ['txId'], equals: filters.id } },
+                ]
+            }),
+            ...((filters.startDate || filters.endDate) && {
+                createdAt: {
+                    ...(filters.startDate && { gte: new Date(filters.startDate) }),
+                    ...(filters.endDate && { lte: new Date(filters.endDate) }),
+                },
+            }),
+        };
+
         const [items, total] = await Promise.all([
             this.prisma.walletTransaction.findMany({
-                where: { walletId: wallet.id },
+                where,
                 orderBy: { createdAt: 'desc' },
                 skip, take: limit,
             }),
-            this.prisma.walletTransaction.count({ where: { walletId: wallet.id } }),
+            this.prisma.walletTransaction.count({ where }),
         ]);
 
         return {

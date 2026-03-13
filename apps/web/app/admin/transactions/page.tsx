@@ -39,6 +39,9 @@ export default function AdminTransactionsPage() {
     const [limit, setLimit] = useState(10);
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [typeFilter, setTypeFilter] = useState<string>('');
+    const [idSearch, setIdSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
     const [selectedTx, setSelectedTx] = useState<any>(null);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -46,12 +49,15 @@ export default function AdminTransactionsPage() {
     const { _hasHydrated, isAuthenticated } = useAuthStore();
 
     const { data, isLoading } = useQuery({
-        queryKey: ['admin-transactions', page, limit, statusFilter, typeFilter],
+        queryKey: ['admin-transactions', page, limit, statusFilter, typeFilter, idSearch, startDate, endDate],
         queryFn: () => financialApi.getTransactions({ 
             page, 
             limit, 
             status: statusFilter || undefined, 
-            type: typeFilter || undefined 
+            type: typeFilter || undefined,
+            id: idSearch || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined
         }),
         enabled: !!_hasHydrated && isAuthenticated,
     });
@@ -100,26 +106,53 @@ export default function AdminTransactionsPage() {
                     <p className="text-white/40 text-xs font-bold uppercase tracking-widest mt-1">Monitoramento de depósitos e saques</p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" size={14} />
+                        <input 
+                            type="text"
+                            value={idSearch}
+                            onChange={(e) => setIdSearch(e.target.value)}
+                            placeholder="BUSCAR POR ID..."
+                            className="bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all w-48"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-2">
+                        <input 
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none py-2 text-white/60 cursor-pointer"
+                        />
+                        <span className="text-white/10">|</span>
+                        <input 
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none py-2 text-white/60 cursor-pointer"
+                        />
+                    </div>
+
                     <select 
                         value={typeFilter}
                         onChange={(e) => setTypeFilter(e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none focus:border-accent-500 transition-all"
+                        className="bg-[#0a0e17] border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white cursor-pointer"
                     >
-                        <option value="">Todos os Tipos</option>
-                        <option value="CASH_IN">Depósitos</option>
-                        <option value="CASH_OUT">Saques</option>
+                        <option value="" className="bg-[#0a0e17]">Todos os Tipos</option>
+                        <option value="CASH_IN" className="bg-[#0a0e17]">Depósitos</option>
+                        <option value="CASH_OUT" className="bg-[#0a0e17]">Saques</option>
                     </select>
 
                     <select 
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-widest outline-none focus:border-accent-500 transition-all"
+                        className="bg-[#0a0e17] border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white cursor-pointer"
                     >
-                        <option value="">Todos os Status</option>
-                        <option value="PENDING">Pendentes</option>
-                        <option value="PAID">Pagos</option>
-                        <option value="FAILED">Falhas</option>
+                        <option value="" className="bg-[#0a0e17]">Todos os Status</option>
+                        <option value="PENDING" className="bg-[#0a0e17]">Pendentes</option>
+                        <option value="PAID" className="bg-[#0a0e17]">Pagos</option>
+                        <option value="FAILED" className="bg-[#0a0e17]">Falhas</option>
                     </select>
                 </div>
             </div>
@@ -130,6 +163,7 @@ export default function AdminTransactionsPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02]">
+                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">ID da Transação</th>
                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Data</th>
                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Usuário</th>
                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Tipo</th>
@@ -160,6 +194,18 @@ export default function AdminTransactionsPage() {
                             ) : (
                                 data?.items.map((tx: any) => (
                                     <tr key={tx.id} className="group hover:bg-white/[0.02] transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-white/80 tabular-nums uppercase tracking-tighter line-clamp-1 w-24" title={tx.txId}>
+                                                    {tx.txId}
+                                                </span>
+                                                {tx.bankiziTxId && (
+                                                    <span className="text-[9px] font-bold text-white/20 uppercase tracking-tighter line-clamp-1 w-24" title={tx.bankiziTxId}>
+                                                        GATEWAY: {tx.bankiziTxId}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-[11px] font-bold text-white/60">{formatDate(tx.createdAt)}</div>
                                         </td>

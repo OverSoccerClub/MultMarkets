@@ -29,6 +29,15 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
     REFUNDED: { label: 'Estornado', color: 'badge-warn' },
 };
 
+const TYPE_LABELS: Record<string, string> = {
+    DEPOSIT: 'Depósito',
+    WITHDRAWAL: 'Saque',
+    BET_DEBIT: 'Aposta',
+    PAYOUT: 'Prêmio',
+    BONUS: 'Bônus',
+    REFUND: 'Estorno',
+};
+
 type Tab = 'deposit' | 'withdraw' | 'history';
 
 // ── QR Code SVG renderer ───────────────────────────────────────────────
@@ -81,12 +90,20 @@ function QrCodeDisplay({ payload }: { payload: string }) {
 // ── Main Page ──────────────────────────────────────────────────────────
 export default function WalletPage() {
     const queryClient = useQueryClient();
-    const { user } = useAuthStore();
+    const { user, _hasHydrated, isAuthenticated } = useAuthStore();
     const [activeTab, setActiveTab] = useState<Tab>('deposit');
     const [depositAmount, setDepositAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [depositResult, setDepositResult] = useState<any>(null);
     const [pollTxId, setPollTxId] = useState<string | null>(null);
+
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
+    const [typeFilter, setTypeFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [idSearch, setIdSearch] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     // ── Wallet data ─────────────────────────────────────────────────
     const { data: wallet, isLoading: walletLoading } = useQuery({
@@ -97,8 +114,17 @@ export default function WalletPage() {
 
     // ── Transaction history ──────────────────────────────────────────
     const { data: transactions } = useQuery({
-        queryKey: ['wallet-transactions'],
-        queryFn: () => walletApi.transactions(1, 20),
+        queryKey: ['transactions', page, limit, typeFilter, statusFilter, idSearch, startDate, endDate],
+        queryFn: () => walletApi.transactions({ 
+            page, 
+            limit, 
+            type: typeFilter || undefined, 
+            status: statusFilter || undefined,
+            id: idSearch || undefined,
+            startDate: startDate || undefined,
+            endDate: endDate || undefined
+        }),
+        enabled: !!_hasHydrated && isAuthenticated && activeTab === 'history',
     });
 
     // ── PIX Deposit mutation ─────────────────────────────────────────
@@ -468,14 +494,70 @@ export default function WalletPage() {
             {/* ── History Tab ──────────────────────────────────────────── */}
             {activeTab === 'history' && (
                 <div className="market-card overflow-hidden">
-                    <div className="p-6 pb-4 border-b border-[var(--border-default)]">
-                        <h3 className="text-lg font-semibold">Histórico de Transações</h3>
+                    <div className="p-6 border-b border-[var(--border-default)]">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                            <h3 className="text-lg font-semibold">Histórico de Transações</h3>
+                        </div>
+
+                        {/* Filters */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative flex-1 min-w-[200px]">
+                                <input 
+                                    type="text"
+                                    value={idSearch}
+                                    onChange={(e) => { setIdSearch(e.target.value); setPage(1); }}
+                                    placeholder="BUSCAR POR ID..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-2">
+                                <input 
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                                    className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none py-2 text-white/50 cursor-pointer"
+                                />
+                                <span className="text-white/10">|</span>
+                                <input 
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                                    className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none py-2 text-white/50 cursor-pointer"
+                                />
+                            </div>
+
+                            <select 
+                                value={typeFilter}
+                                onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+                                className="bg-[#0a0e17] border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white cursor-pointer"
+                            >
+                                <option value="" className="bg-[#0a0e17]">Todos os Tipos</option>
+                                <option value="DEPOSIT" className="bg-[#0a0e17]">Depósitos</option>
+                                <option value="WITHDRAWAL" className="bg-[#0a0e17]">Saques</option>
+                                <option value="BET_DEBIT" className="bg-[#0a0e17]">Apostas</option>
+                                <option value="PAYOUT" className="bg-[#0a0e17]">Prêmios</option>
+                            </select>
+
+                            <select 
+                                value={statusFilter}
+                                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                                className="bg-[#0a0e17] border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white cursor-pointer"
+                            >
+                                <option value="" className="bg-[#0a0e17]">Todos os Status</option>
+                                <option value="PENDING" className="bg-[#0a0e17]">Pendentes</option>
+                                <option value="CONFIRMED" className="bg-[#0a0e17]">Confirmados</option>
+                                <option value="PAID" className="bg-[#0a0e17]">Pagos</option>
+                                <option value="COMPLETED" className="bg-[#0a0e17]">Concluídos</option>
+                                <option value="FAILED" className="bg-[#0a0e17]">Falhas</option>
+                            </select>
+                        </div>
                     </div>
 
                     {transactions?.items?.length > 0 ? (
                         <div className="divide-y divide-[var(--border-muted)]">
                             {transactions.items.map((tx: any) => (
-                                <div key={tx.id} className="flex items-center justify-between px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors">
+                                    <div key={tx.id} className="flex items-center justify-between px-6 py-4 hover:bg-[var(--bg-subtle)] transition-colors">
                                     <div className="flex items-center gap-3">
                                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${tx.type === 'DEPOSIT' || tx.type === 'PAYOUT' || tx.type === 'BONUS'
                                             ? 'bg-[var(--color-yes-subtle)] text-[var(--color-yes-text)]'
@@ -483,11 +565,15 @@ export default function WalletPage() {
                                             }`}>
                                             {tx.type === 'DEPOSIT' || tx.type === 'PAYOUT' || tx.type === 'BONUS' ? '↓' : '↑'}
                                         </div>
-                                        <div>
+                                        <div className="flex flex-col">
                                             <p className="text-sm font-medium text-[var(--text-primary)]">
-                                                {tx.description || tx.type}
+                                                {tx.description || TYPE_LABELS[tx.type] || tx.type}
                                             </p>
-                                            <p className="text-xs text-[var(--text-muted)]">{formatDate(tx.createdAt)}</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-[10px] text-[var(--text-muted)]">{formatDate(tx.createdAt)}</p>
+                                                <span className="text-[10px] text-white/20">•</span>
+                                                <p className="text-[10px] font-mono text-white/20 uppercase tracking-tighter" title={tx.id}>ID: {tx.id.substring(0, 8)}...</p>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -508,6 +594,46 @@ export default function WalletPage() {
                     ) : (
                         <div className="p-12 text-center">
                             <p className="text-[var(--text-muted)] text-sm">Nenhuma transação encontrada.</p>
+                        </div>
+                    )}
+
+                    {/* Pagination */}
+                    {transactions?.meta && transactions.meta.totalPages > 0 && (
+                        <div className="p-6 bg-white/[0.01] border-t border-white/5 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                                    Página {transactions.meta.page} de {transactions.meta.totalPages} ({transactions.meta.total})
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Exibir</span>
+                                    <select
+                                        value={limit}
+                                        onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                                        className="bg-[#0a0e17] border border-white/10 rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-widest outline-none focus:border-accent-500 transition-all text-white cursor-pointer"
+                                    >
+                                        <option value={5} className="bg-[#0a0e17]">5</option>
+                                        <option value={10} className="bg-[#0a0e17]">10</option>
+                                        <option value={20} className="bg-[#0a0e17]">20</option>
+                                        <option value={50} className="bg-[#0a0e17]">50</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                                >
+                                    ←
+                                </button>
+                                <button 
+                                    onClick={() => setPage(p => Math.min(transactions.meta.totalPages, p + 1))}
+                                    disabled={page === transactions.meta.totalPages}
+                                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-white disabled:opacity-30 hover:bg-white/10 transition-all"
+                                >
+                                    →
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

@@ -84,7 +84,8 @@ export const walletApi = {
     get: () => api.get('/wallet').then((r) => r.data),
     deposit: (amount: number) => api.post('/wallet/deposit', { amount }).then((r) => r.data),
     withdraw: (amount: number, pixKey: string) => api.post('/wallet/withdraw', { amount, pixKey }).then((r) => r.data),
-    transactions: (page = 1, limit = 20) => api.get('/wallet/transactions', { params: { page, limit } }).then((r) => r.data),
+    transactions: (params: { page?: number; limit?: number; type?: string; status?: string; startDate?: string; endDate?: string; id?: string } = {}) => 
+        api.get('/wallet/transactions', { params }).then((r) => r.data),
 };
 
 export const tradingApi = {
@@ -133,7 +134,7 @@ export const adminApi = {
 };
 
 export const financialApi = {
-    getTransactions: (params: { page?: number; limit?: number; status?: string; type?: string }) =>
+    getTransactions: (params: { page?: number; limit?: number; status?: string; type?: string; startDate?: string; endDate?: string; id?: string }) =>
         api.get('/admin/financial/transactions', { params }).then((r) => r.data),
     approveWithdrawal: (txId: string) => api.patch(`/admin/financial/transactions/${txId}/approve`).then((r) => r.data),
     approveDeposit: (txId: string) => api.patch(`/admin/financial/transactions/${txId}/approve-deposit`).then((r) => r.data),

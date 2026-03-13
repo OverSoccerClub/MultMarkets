@@ -8,7 +8,17 @@ export class FinancialService {
 
   constructor(private prisma: PrismaService) {}
 
-  async listTransactions(page = 1, limit = 20, filters: { status?: PixTransactionStatus; type?: 'CASH_IN' | 'CASH_OUT' } = {}) {
+  async listTransactions(
+    page = 1, 
+    limit = 20, 
+    filters: { 
+      status?: PixTransactionStatus; 
+      type?: 'CASH_IN' | 'CASH_OUT';
+      startDate?: string;
+      endDate?: string;
+      txId?: string;
+    } = {}
+  ) {
     const skip = (page - 1) * limit;
 
     const [items, total] = await Promise.all([
@@ -16,6 +26,18 @@ export class FinancialService {
         where: {
           ...(filters.status && { status: filters.status }),
           ...(filters.type && { type: filters.type as any }),
+          ...(filters.txId && {
+            OR: [
+              { txId: { contains: filters.txId } },
+              { bankiziTxId: { contains: filters.txId } },
+            ]
+          }),
+          ...((filters.startDate || filters.endDate) && {
+            createdAt: {
+              ...(filters.startDate && { gte: new Date(filters.startDate) }),
+              ...(filters.endDate && { lte: new Date(filters.endDate) }),
+            },
+          }),
         },
         include: {
           wallet: {
@@ -40,6 +62,18 @@ export class FinancialService {
         where: {
           ...(filters.status && { status: filters.status }),
           ...(filters.type && { type: filters.type as any }),
+          ...(filters.txId && {
+            OR: [
+              { txId: { contains: filters.txId } },
+              { bankiziTxId: { contains: filters.txId } },
+            ]
+          }),
+          ...((filters.startDate || filters.endDate) && {
+            createdAt: {
+              ...(filters.startDate && { gte: new Date(filters.startDate) }),
+              ...(filters.endDate && { lte: new Date(filters.endDate) }),
+            },
+          }),
         },
       }),
     ]);
