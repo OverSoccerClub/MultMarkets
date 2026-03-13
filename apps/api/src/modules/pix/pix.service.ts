@@ -315,15 +315,61 @@ export class PixService {
         const isPaid = ['PAID', 'APPROVED', 'COMPLETED', 'SUCCESS', 'CONCLUDED'].includes(status);
 
         if ((event === 'PIX_IN' || event === 'CASH_IN' || event === 'CASHIN' || event === 'DEPOSIT') && isPaid) {
-            await this.handlePaymentConfirmation(txId, 'CASH_IN');
+            await this.handlePaymentConfirmation(txId, 'CASH_IN', data);
         } else if ((event === 'PIX_OUT' || event === 'CASH_OUT' || event === 'CASHOUT' || event === 'WITHDRAW') && isPaid) {
-            await this.handlePaymentConfirmation(txId, 'CASH_OUT');
+            await this.handlePaymentConfirmation(txId, 'CASH_OUT', data);
         } else {
             this.logger.log(`Webhook event not actionable: event=${event}, status=${status}`);
         }
     }
 
-    private async handlePaymentConfirmation(txId: string, type: 'CASH_IN' | 'CASH_OUT') {
+    private extractPayerCpf(data: any): string | null {
+        if (!data || typeof data !== 'object') return null;
+        
+        // Flattened common paths for payer CPF
+        const possibleFields = [
+            data?.payer?.cpf,
+            data?.payer?.document,
+            data?.payerInfo?.cpf,
+            data?.payerInfo?.document,
+            data?.customer?.cpf,
+            data?.customer?.document,
+            data?.sender?.cpf,
+            data?.sender?.document,
+            data?.document,
+            data?.cpf
+        ];
+
+        for (const val of possibleFields) {
+            if (typeof val === 'string' || typeof val === 'number') {
+                const digits = String(val).replace(/\D/g, '');
+                if (digits.length === 11 || digits.length === 14) return digits;
+            }
+        }
+
+        // Deep search fallback
+        let foundCpf: string | null = null;
+        const search = (obj: any) => {
+            if (!obj || typeof obj !== 'object') return;
+            for (const [key, val] of Object.entries(obj)) {
+                if (['cpf', 'document', 'documentnumber', 'cnpj'].includes(key.toLowerCase()) && (typeof val === 'string' || typeof val === 'number')) {
+                    const digits = String(val).replace(/\D/g, '');
+                    if (digits.length === 11 || digits.length === 14) {
+                        foundCpf = digits;
+                        return;
+                    }
+                }
+                if (typeof val === 'object') {
+                    search(val);
+                    if (foundCpf) return;
+                }
+            }
+        };
+        search(data);
+        return foundCpf;
+    }
+
+    private async handlePaymentConfirmation(txId: string, type: 'CASH_IN' | 'CASH_OUT', webhookData?: any) {
         // Try to find by our internal txId first, then fallback to bankiziTxId
         let pixTx = await this.prisma.pixTransaction.findUnique({ where: { txId } });
         if (!pixTx) {
@@ -340,6 +386,34 @@ export class PixService {
         }
 
         if (type === 'CASH_IN') {
+            // CPF MATCHING VALIDATION: Reject third-party deposits
+            const userWallet = await this.prisma.wallet.findUnique({ 
+                where: { id: pixTx.walletId }, 
+                include: { user: true } 
+            });
+            const userCpf = userWallet?.user?.cpf?.replace(/\D/g, '');
+
+            if (webhookData && userCpf) {
+                const payerCpf = this.extractPayerCpf(webhookData);
+                if (payerCpf && payerCpf !== userCpf) {
+                    this.logger.warn(`Deposit REJECTED due to CPF mismatch: txId=${txId}, expected userCpf=${userCpf}, got payerCpf=${payerCpf}`);
+                    await this.prisma.pixTransaction.update({
+                        where: { txId: pixTx.txId },
+                        data: { 
+                            status: 'FAILED', 
+                            metadata: { ...(pixTx.metadata as any || {}), rejectionReason: 'CPF Divergente (Depósito de Terceiros)', payerCpf }
+                        }
+                    });
+                    return; // Abort deposit
+                } else if (!payerCpf) {
+                    this.logger.log(`Could not find payer CPF in webhook payload for txId=${txId}, proceeding with deposit...`);
+                } else {
+                    this.logger.log(`CPF matched successfully for txId=${txId}`);
+                }
+            } else if (!userCpf) {
+                this.logger.warn(`User does not have a registered CPF to validate deposit for txId=${txId}`);
+            }
+
             // Credit the wallet
             await this.prisma.$transaction(async (tx) => {
                 const wallet = await tx.wallet.findUniqueOrThrow({ where: { id: pixTx.walletId } });
@@ -365,7 +439,7 @@ export class PixService {
                 });
 
                 await tx.pixTransaction.update({
-                    where: { txId },
+                    where: { txId: pixTx.txId },
                     data: { status: 'PAID', paidAt: new Date() },
                 });
             });
@@ -375,7 +449,7 @@ export class PixService {
             // Cash-out confirmed — just update the PIX transaction status
             await this.prisma.$transaction(async (tx) => {
                 await tx.pixTransaction.update({
-                    where: { txId },
+                    where: { txId: pixTx.txId },
                     data: { status: 'PAID', paidAt: new Date() },
                 });
 
