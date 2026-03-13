@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
+import { authApi } from '@/lib/api';
 import {
     LayoutDashboard,
     Bot,
@@ -32,8 +33,18 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { user, isAuthenticated, _hasHydrated } = useAuthStore();
+    const { user, isAuthenticated, _hasHydrated, logout } = useAuthStore();
     const [isAuthorized, setIsAuthorized] = React.useState(false);
+
+    const handleLogout = async () => {
+        try {
+            await authApi.logout();
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+        logout();
+        router.push('/admin/login');
+    };
 
     React.useEffect(() => {
         if (!_hasHydrated) return; // Wait for zustand to restore from localStorage
@@ -164,7 +175,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </div>
                         </div>
 
-                        <button className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-bold text-yes-400/60 hover:text-yes-400 hover:bg-yes-400/5 transition-all duration-300">
+                        <button 
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl text-sm font-bold text-yes-400/60 hover:text-yes-400 hover:bg-yes-400/5 transition-all duration-300"
+                        >
                             <LogOut size={20} />
                             <span>Sair</span>
                         </button>

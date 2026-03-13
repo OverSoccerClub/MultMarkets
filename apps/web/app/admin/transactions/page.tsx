@@ -17,8 +17,11 @@ import {
     ChevronRight,
     Loader2,
     DollarSign,
-    AlertCircle
+    AlertCircle,
+    Edit2,
+    ShieldAlert
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/store';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
@@ -40,6 +43,8 @@ export default function AdminTransactionsPage() {
     const [selectedTx, setSelectedTx] = useState<any>(null);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
+    const { _hasHydrated, isAuthenticated } = useAuthStore();
+
     const { data, isLoading } = useQuery({
         queryKey: ['admin-transactions', page, limit, statusFilter, typeFilter],
         queryFn: () => financialApi.getTransactions({ 
@@ -48,6 +53,7 @@ export default function AdminTransactionsPage() {
             status: statusFilter || undefined, 
             type: typeFilter || undefined 
         }),
+        enabled: !!_hasHydrated && isAuthenticated,
     });
 
     const approveMutation = useMutation({
