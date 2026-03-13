@@ -40,8 +40,14 @@ export class WebhookController {
 
         this.logger.log(`Bankizi webhook received: ${JSON.stringify(body)}`);
 
-        const event = body?.event;
-        const data = body?.data;
+        let event = body?.event || body?.type;
+        let data = body?.data || body?.payload || body;
+
+        // Fallback for flat JSON structures {"txId": "...", "status": "APPROVED"}
+        if (!event && data?.txId && data?.status) {
+            this.logger.log('Fallback: Inferring webhook event from flat structure');
+            event = 'PIX_IN';
+        }
 
         if (!event || !data) {
             this.logger.warn('Webhook missing event or data');

@@ -57,14 +57,25 @@ export class BankiziProvider implements PaymentGatewayProvider {
 
     async getStatus(txId: string, type: 'CASH_IN' | 'CASH_OUT', config?: any): Promise<StatusResponse> {
         try {
-            const response = type === 'CASH_IN' 
+            const rawResponse = type === 'CASH_IN' 
                 ? await this.bankiziService.getCashInStatus(txId, config)
                 : await this.bankiziService.getCashOutStatus(txId, config);
 
+            // Some APIs return an array for a single txId query
+            const response = Array.isArray(rawResponse) ? rawResponse[0] : rawResponse;
+
+            if (!response) {
+                return { status: 'PENDING' };
+            }
+
+            const rawStatus = response.status ? String(response.status).toUpperCase() : '';
             let status: 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' = 'PENDING';
-            if (response.status === 'PAID') status = 'PAID';
-            else if (response.status === 'FAILED') status = 'FAILED';
-            else if (response.status === 'EXPIRED') status = 'EXPIRED';
+            
+            if (['PAID', 'APPROVED', 'COMPLETED', 'SUCCESS', 'CONCLUDED'].includes(rawStatus)) {
+                status = 'PAID';
+            } else if (['FAILED', 'CANCELED', 'CANCELLED', 'EXPIRED', 'ERROR'].includes(rawStatus)) {
+                status = 'FAILED';
+            }
 
             return {
                 status,

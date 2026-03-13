@@ -323,9 +323,12 @@ export class PixService {
             return;
         }
 
-        if (event === 'PIX_IN' && data.status === 'PAID') {
+        const status = data?.status ? String(data.status).toUpperCase() : '';
+        const isPaid = ['PAID', 'APPROVED', 'COMPLETED', 'SUCCESS', 'CONCLUDED'].includes(status);
+
+        if ((event === 'PIX_IN' || event === 'CASH_IN' || event === 'CASHIN' || event === 'DEPOSIT') && isPaid) {
             await this.handlePaymentConfirmation(txId, 'CASH_IN');
-        } else if (event === 'PIX_OUT' && data.status === 'PAID') {
+        } else if ((event === 'PIX_OUT' || event === 'CASH_OUT' || event === 'CASHOUT' || event === 'WITHDRAW') && isPaid) {
             await this.handlePaymentConfirmation(txId, 'CASH_OUT');
         } else {
             this.logger.log(`Webhook event not actionable: event=${event}, status=${data.status}`);

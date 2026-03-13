@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { walletApi, pixApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import Link from 'next/link';
+import QRCode from 'react-qr-code';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatBRL(value: number) {
@@ -42,24 +43,18 @@ function QrCodeDisplay({ payload }: { payload: string }) {
 
     return (
         <div className="flex flex-col items-center gap-4">
-            {/* QR code placeholder — use the payload for copy-paste */}
-            <div className="relative w-56 h-56 bg-white rounded-2xl p-4 flex items-center justify-center">
-                <div className="absolute inset-0 bg-white rounded-2xl" />
-                <div className="relative z-10 flex flex-col items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-20 h-20 text-gray-900" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <rect x="14" y="14" width="3" height="3" />
-                        <rect x="18" y="14" width="3" height="3" />
-                        <rect x="14" y="18" width="3" height="3" />
-                        <rect x="18" y="18" width="3" height="3" />
-                        <rect x="5" y="5" width="3" height="3" fill="currentColor" />
-                        <rect x="16" y="5" width="3" height="3" fill="currentColor" />
-                        <rect x="5" y="16" width="3" height="3" fill="currentColor" />
-                    </svg>
-                    <span className="text-[10px] text-gray-500 font-medium">PIX Copia e Cola</span>
-                </div>
+            {/* Real QR code */}
+            <div className="relative bg-white rounded-xl p-4 flex flex-col items-center justify-center w-56 h-56 shadow-md shadow-white/5 border border-white/10">
+                {payload ? (
+                    <QRCode
+                        size={190}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        value={payload}
+                        viewBox={`0 0 190 190`}
+                    />
+                ) : (
+                    <div className="animate-pulse bg-gray-200 w-full h-full rounded-lg" />
+                )}
             </div>
 
             <div className="w-full max-w-sm">
