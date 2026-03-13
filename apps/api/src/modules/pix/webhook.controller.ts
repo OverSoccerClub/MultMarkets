@@ -20,6 +20,30 @@ export class WebhookController {
     ) {
     }
 
+    // ── Dedicated Endpoints ───────────────────────────────────────────
+
+    @Post('bankizi/sandbox')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Webhook para receber notificações da Bankizi (Sandbox)' })
+    async handleBankiziSandboxWebhook(
+        @Req() req: any,
+        @Headers('x-webhook-secret') headerSecret?: string,
+    ) {
+        return this.processBankiziWebhook(req, headerSecret, 'SANDBOX');
+    }
+
+    @Post('bankizi/production')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Webhook para receber notificações da Bankizi (Produção)' })
+    async handleBankiziProductionWebhook(
+        @Req() req: any,
+        @Headers('x-webhook-secret') headerSecret?: string,
+    ) {
+        return this.processBankiziWebhook(req, headerSecret, 'PRODUCTION');
+    }
+
+    // ── Legacy Endpoint (Keeping for transition/fallback) ─────────────
+
     @Post('bankizi')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Webhook para receber notificações da Bankizi (PIX)' })
@@ -27,18 +51,36 @@ export class WebhookController {
         @Req() req: any,
         @Headers('x-webhook-secret') headerSecret?: string,
     ) {
+        // Fallback uses the active environment configured in settings
+        return this.processBankiziWebhook(req, headerSecret, 'AUTO');
+    }
+
+    // ── Common Processor ──────────────────────────────────────────────
+
+    private async processBankiziWebhook(
+        req: any,
+        headerSecret: string | undefined,
+        environment: 'SANDBOX' | 'PRODUCTION' | 'AUTO'
+    ) {
         const body = req.body;
-        this.logger.log(`=== BANKIZI WEBHOOK HIT ===> Headers secret: ${headerSecret ? 'present' : 'missing'}`);
+        this.logger.log(`=== BANKIZI WEBHOOK HIT [${environment}] ===> Headers secret: ${headerSecret ? 'present' : 'missing'}`);
         this.logger.log(`=== BANKIZI WEBHOOK BODY ===> ${JSON.stringify(body)}`);
 
-        // Fetch webhook secret dynamically from DB based on active environment (Sandbox vs Prod)
+        // Fetch configs and secret
         const bankiziConfig = await this.settings.getBankiziConfig();
-        const envPrefix = bankiziConfig.environment === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
-        const webhookSecret = bankiziConfig.webhookSecret || this.config.get<string>(`${envPrefix}WEBHOOK_SECRET`, '');
+        const activeEnv = environment === 'AUTO' ? bankiziConfig.environment : environment;
+        const envPrefix = activeEnv === 'PRODUCTION' ? 'BANKIZI_PRODUCTION_' : 'BANKIZI_SANDBOX_';
+        
+        let webhookSecret = '';
+        if (activeEnv === bankiziConfig.environment) {
+            webhookSecret = bankiziConfig.webhookSecret || this.config.get<string>(`${envPrefix}WEBHOOK_SECRET`, '');
+        } else {
+            webhookSecret = this.config.get<string>(`${envPrefix}WEBHOOK_SECRET`, '');
+        }
 
-        // Basic webhook secret validation (if configured)
+        // Basic webhook secret validation
         if (webhookSecret && headerSecret !== webhookSecret) {
-            this.logger.warn(`Webhook rejected: invalid secret (expected=${webhookSecret?.substring(0,4)}..., got=${headerSecret?.substring(0,4)}...)`);
+            this.logger.warn(`Webhook rejected [${activeEnv}]: invalid secret`);
             throw new BadRequestException('Invalid webhook secret');
         }
 
@@ -47,20 +89,20 @@ export class WebhookController {
 
         // Fallback for flat JSON structures {"txId": "...", "status": "APPROVED"}
         if (!event && data?.txId && data?.status) {
-            this.logger.log('Fallback: Inferring webhook event from flat structure');
+            this.logger.log(`Fallback: Inferring webhook event from flat structure [${activeEnv}]`);
             event = 'PIX_IN';
         }
 
         if (!event || !data) {
-            this.logger.warn('Webhook missing event or data');
+            this.logger.warn(`Webhook missing event or data [${activeEnv}]`);
             return { received: true };
         }
 
         try {
             await this.pixService.handleWebhook(event, data);
         } catch (error) {
-            this.logger.error(`Error processing webhook: ${error.message}`, error.stack);
-            // Return 200 anyway to avoid Bankizi retrying
+            this.logger.error(`Error processing webhook [${activeEnv}]: ${error.message}`, error.stack);
+            // Return 200 anyway to avoid Bankizi retrying infinitely
         }
 
         return { received: true };

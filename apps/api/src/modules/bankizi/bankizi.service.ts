@@ -153,9 +153,12 @@ export class BankiziService {
             ? 'https://mult-markets-api.ptehea.easypanel.host' 
             : 'http://localhost:3000';
             
-        body.webhookUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
-        body.callbackUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
-        body.notifyUrl = `${baseUrl}/api/v1/webhooks/bankizi`;
+        const envSuffix = config.environment === 'PRODUCTION' ? '/production' : '/sandbox';
+        const webhookUrl = `${baseUrl}/api/v1/webhooks/bankizi${envSuffix}`;
+            
+        body.webhookUrl = webhookUrl;
+        body.callbackUrl = webhookUrl;
+        body.notifyUrl = webhookUrl;
 
         if (params.payerInfo) {
             body.payerInfo = params.payerInfo;
