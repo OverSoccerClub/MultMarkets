@@ -42,6 +42,12 @@ export class AuthController {
         return this.authService.resendVerification(userId);
     }
 
+    @Get('check-availability')
+    @ApiOperation({ summary: 'Verificar disponibilidade de E-mail ou CPF' })
+    checkAvailability(@Req() req: any) {
+        return this.authService.checkAvailability(req.query);
+    }
+
     @Post('login')
     @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 per minute
     @HttpCode(HttpStatus.OK)

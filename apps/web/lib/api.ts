@@ -88,6 +88,7 @@ api.interceptors.response.use(
 
 export const authApi = {
     register: (data: any) => api.post('/auth/register', data).then((r) => r.data),
+    checkAvailability: (params: { email?: string; cpf?: string }) => api.get('/auth/check-availability', { params }).then((r) => r.data),
     login: (data: any) => api.post('/auth/login', data).then((r) => r.data),
     verifyKyc: (data: any) => api.post('/auth/verify-kyc', data).then((r) => r.data),
     resendVerification: (userId: string) => api.post(`/auth/resend-verification/${userId}`).then((r) => r.data),

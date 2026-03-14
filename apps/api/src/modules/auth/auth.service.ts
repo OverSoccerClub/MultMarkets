@@ -182,6 +182,24 @@ export class AuthService {
         return { message: 'Novo código enviado para seu e-mail.' };
     }
 
+    async checkAvailability(query: { email?: string; cpf?: string }) {
+        const { email, cpf } = query;
+        const result = { emailAvailable: true, cpfAvailable: true };
+
+        if (email) {
+            const count = await this.prisma.user.count({ where: { email: email.toLowerCase() } });
+            result.emailAvailable = count === 0;
+        }
+
+        if (cpf) {
+            const cleanCpf = cpf.replace(/\D/g, '');
+            const count = await this.prisma.user.count({ where: { cpf: cleanCpf } });
+            result.cpfAvailable = count === 0;
+        }
+
+        return result;
+    }
+
     // ── VERIFY EMAIL ─────────────────────────────────────────────────
     async verifyEmail(token: string) {
         const emailToken = await this.prisma.emailToken.findUnique({

@@ -7,9 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
 import { authApi } from '@/lib/api';
-import { Eye, EyeOff, Lock, Mail, User, AtSign, UserPlus, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, User, AtSign, UserPlus, CheckCircle2, ShieldCheck, AlertCircle, AlertTriangle } from 'lucide-react';
 import { FuturisticOverlay, DataStream, LiveCandlesticks } from '@/components/layout/PremiumVisuals';
-import { useMotionValue, useTransform } from 'framer-motion';
+import { useMotionValue, useTransform, AnimatePresence } from 'framer-motion';
 
 // Simple formatter functions
 const formatCPF = (v: string) => {
@@ -70,10 +70,10 @@ export default function RegisterPage() {
     const router = useRouter();
     const [showPass, setShowPass] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [generalError, setGeneralError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    const { register, handleSubmit, watch, formState: { errors, touchedFields } } = useForm<FormData>({
+    const { register, handleSubmit, watch, setError, clearErrors, formState: { errors, touchedFields } } = useForm<FormData>({
         resolver: zodResolver(schema),
         mode: 'onTouched',
     });
@@ -104,9 +104,40 @@ export default function RegisterPage() {
         { label: 'Um número', ok: /[0-9]/.test(password) },
     ];
 
+    const checkCpfAvailability = async (cpf: string) => {
+        const cleanCpf = cpf.replace(/\D/g, '');
+        if (cleanCpf.length !== 11 || !isValidCpf(cleanCpf)) return;
+        
+        try {
+            const { cpfAvailable } = await authApi.checkAvailability({ cpf: cleanCpf });
+            if (!cpfAvailable) {
+                setError('cpf', { type: 'manual', message: 'Este CPF já está cadastrado.' });
+            } else {
+                clearErrors('cpf');
+            }
+        } catch (err) {
+            console.error('CPF Check error:', err);
+        }
+    };
+
+    const checkEmailAvailability = async (email: string) => {
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+        
+        try {
+            const { emailAvailable } = await authApi.checkAvailability({ email });
+            if (!emailAvailable) {
+                setError('email', { type: 'manual', message: 'Este e-mail já está em uso.' });
+            } else {
+                clearErrors('email');
+            }
+        } catch (err) {
+            console.error('Email Check error:', err);
+        }
+    };
+
     const onSubmit = async (data: FormData) => {
         setLoading(true);
-        setError('');
+        setGeneralError('');
         const { confirmPassword: _, ...payload } = data;
         
         // Limpar máscaras antes de enviar
@@ -118,7 +149,7 @@ export default function RegisterPage() {
             // Redireciona para a tela de verificação/ativação
             router.push(`/auth/verify?userId=${res.data.userId}` as any);
         } catch (err: any) {
-            setError(err?.response?.data?.message ?? 'Erro ao criar conta.');
+            setGeneralError(err?.response?.data?.message ?? 'Erro ao criar conta.');
         } finally {
             setLoading(false);
         }
@@ -188,7 +219,19 @@ export default function RegisterPage() {
                                     <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                                     <input {...register('username')} className="input pl-9 w-full" placeholder="joaosilva" />
                                 </div>
-                                {errors.username && <p className="text-no-400 text-tiny mt-1">{errors.username.message}</p>}
+                                <AnimatePresence>
+                                    {errors.username && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -5 }}
+                                            className="flex items-center gap-1.5 mt-1 mt-1.5 py-1 px-3 rounded-lg bg-no-500/10 border border-no-500/20"
+                                        >
+                                            <AlertTriangle size={10} className="text-no-400" />
+                                            <p className="text-no-400 text-[9px] font-black uppercase tracking-wider">{errors.username.message}</p>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
 
@@ -207,11 +250,27 @@ export default function RegisterPage() {
                                             e.target.value = formatCPF(e.target.value);
                                             register('cpf').onChange(e);
                                         }}
+                                        onBlur={(e) => {
+                                            register('cpf').onBlur(e);
+                                            checkCpfAvailability(e.target.value);
+                                        }}
                                         className={`input pl-9 w-full font-mono text-sm ${errors.cpf && touchedFields.cpf ? 'border-no-500/50 focus:border-no-500/50 bg-no-500/5 ring-no-500/20' : ''}`} 
                                         placeholder="000.000.000-00" 
                                     />
                                 </div>
-                                {errors.cpf && <p className="text-no-400 text-tiny mt-1">{errors.cpf.message}</p>}
+                                <AnimatePresence>
+                                    {errors.cpf && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -5 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -5 }}
+                                            className="flex items-center gap-1.5 mt-1.5 py-1 px-3 rounded-lg bg-no-500/10 border border-no-500/20"
+                                        >
+                                            <AlertTriangle size={10} className="text-no-400" />
+                                            <p className="text-no-400 text-[9px] font-black uppercase tracking-wider">{errors.cpf.message}</p>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
 
                             {/* Celular */}
@@ -242,11 +301,27 @@ export default function RegisterPage() {
                                 <input 
                                     {...register('email')} 
                                     type="email" 
+                                    onBlur={(e) => {
+                                        register('email').onBlur(e);
+                                        checkEmailAvailability(e.target.value);
+                                    }}
                                     className={`input pl-9 w-full text-sm ${errors.email && touchedFields.email ? 'border-no-500/50 focus:border-no-500/50 bg-no-500/5 ring-no-500/20' : ''}`} 
                                     placeholder="seu@email.com" 
                                 />
                             </div>
-                            {errors.email && <p className="text-no-400 text-tiny mt-1">{errors.email.message}</p>}
+                            <AnimatePresence>
+                                {errors.email && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -5 }}
+                                        className="flex items-center gap-1.5 mt-1.5 py-1 px-3 rounded-lg bg-no-500/10 border border-no-500/20"
+                                    >
+                                        <AlertTriangle size={10} className="text-no-400" />
+                                        <p className="text-no-400 text-[9px] font-black uppercase tracking-wider">{errors.email.message}</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Password */}
@@ -285,8 +360,8 @@ export default function RegisterPage() {
                             {errors.confirmPassword && <p className="text-no-400 text-tiny mt-1">{errors.confirmPassword.message}</p>}
                         </div>
 
-                        {error && (
-                            <div className="p-3 rounded-lg bg-no-500/10 border border-no-500/20 text-no-400 text-sm">{error}</div>
+                        {generalError && (
+                            <div className="p-3 rounded-lg bg-no-500/10 border border-no-500/20 text-no-400 text-sm">{generalError}</div>
                         )}
 
                         <button type="submit" disabled={loading} className="w-full bg-white text-black font-black py-4 rounded-xl text-xs uppercase tracking-[0.2em] hover:bg-accent-500 hover:text-white transition-all duration-300 shadow-xl disabled:opacity-50 flex items-center justify-center gap-3 overflow-hidden group">
