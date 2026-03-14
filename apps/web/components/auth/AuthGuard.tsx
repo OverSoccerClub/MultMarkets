@@ -22,7 +22,7 @@ export function AuthGuard({ children, requiredRole }: AuthGuardProps) {
         if (!isAuthenticated) {
             // Redirect to appropriate login page
             const loginUrl = pathname.startsWith('/admin') ? '/admin/login' : '/auth/login';
-            router.push(`${loginUrl}?callbackUrl=${pathname}`);
+            router.push(loginUrl);
             return;
         }
 

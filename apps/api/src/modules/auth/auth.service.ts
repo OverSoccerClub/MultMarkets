@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
-import { randomUUID as uuid, randomInt } from 'crypto';
+import { randomUUID as uuid, randomInt, createHash } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto, LoginDto, VerifyKycDto, UpdateProfileDto, ResetPasswordDto } from './dto/auth.dto';
 import { EmailService } from '../email/email.service';
@@ -213,7 +213,7 @@ export class AuthService {
 
         // Create session
         const sessionId = this.generateSecureToken();
-        const sessionHash = await bcrypt.hash(sessionId, 8);
+        const sessionHash = createHash('sha256').update(sessionId).digest('hex');
         await this.prisma.$transaction([
             this.prisma.userSession.create({
                 data: {
@@ -254,8 +254,9 @@ export class AuthService {
         }
 
         // Validate old session exists
+        const oldSessionHash = createHash('sha256').update(payload.sessionId).digest('hex');
         const oldSession = await this.prisma.userSession.findFirst({
-            where: { tokenHash: payload.sessionId, expiresAt: { gt: new Date() } }
+            where: { tokenHash: oldSessionHash, expiresAt: { gt: new Date() } }
         });
 
         if (!oldSession) {
@@ -266,7 +267,7 @@ export class AuthService {
         await this.prisma.userSession.delete({ where: { id: oldSession.id } });
 
         const newSessionId = this.generateSecureToken();
-        const sessionHash = await bcrypt.hash(newSessionId, 8);
+        const sessionHash = createHash('sha256').update(newSessionId).digest('hex');
         
         await this.prisma.userSession.create({
             data: {
@@ -436,7 +437,8 @@ export class AuthService {
     }
 
     async logout(sessionId: string) {
-        await this.prisma.userSession.deleteMany({ where: { tokenHash: sessionId } });
+        const sessionHash = createHash('sha256').update(sessionId).digest('hex');
+        await this.prisma.userSession.deleteMany({ where: { tokenHash: sessionHash } });
         return { message: 'Sessão encerrada' };
     }
 

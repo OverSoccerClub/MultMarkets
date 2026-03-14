@@ -15,8 +15,6 @@ export function middleware(request: NextRequest) {
     if (isUserRoute || isAdminRoute) {
         if (!token) {
             const loginUrl = new URL(isAdminRoute ? '/admin/login' : '/auth/login', request.url);
-            // Store the attempted URL to redirect back after login
-            loginUrl.searchParams.set('callbackUrl', pathname);
             return NextResponse.redirect(loginUrl);
         }
     }

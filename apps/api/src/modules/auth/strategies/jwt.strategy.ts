@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { createHash } from 'crypto';
 
 export interface JwtPayload {
     sub: string; // userId
@@ -31,8 +32,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     async validate(payload: JwtPayload) {
         if (payload.sessionId) {
+            const sessionHash = createHash('sha256').update(payload.sessionId).digest('hex');
             const session = await this.prisma.userSession.findFirst({
-                where: { tokenHash: payload.sessionId, expiresAt: { gt: new Date() } },
+                where: { tokenHash: sessionHash, expiresAt: { gt: new Date() } },
             });
             if (!session) {
                 throw new UnauthorizedException('Sessão expirada ou revogada');

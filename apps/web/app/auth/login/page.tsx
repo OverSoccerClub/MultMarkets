@@ -64,7 +64,7 @@ export default function LoginPage() {
             setTokens(result.accessToken, result.refreshToken);
             const me = await authApi.me();
             setUser(me);
-            router.push('/');
+            window.location.href = '/';
         } catch (err: any) {
             setError(err?.response?.data?.message ?? 'Erro ao entrar. Tente novamente.');
         } finally {
