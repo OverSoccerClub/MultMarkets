@@ -31,10 +31,27 @@ const formatPhone = (v: string) => {
     return v;
 };
 
+const isValidCpf = (cpf: string): boolean => {
+    const cleanCpf = cpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11 || /^(\d)\1{10}$/.test(cleanCpf)) return false;
+    let sum = 0;
+    let remainder;
+    for (let i = 1; i <= 9; i++) sum += parseInt(cleanCpf.substring(i - 1, i)) * (11 - i);
+    remainder = (sum * 10) % 11;
+    if (remainder === 10 || remainder === 11) remainder = 0;
+    if (remainder !== parseInt(cleanCpf.substring(9, 10))) return false;
+    sum = 0;
+    for (let i = 1; i <= 10; i++) sum += parseInt(cleanCpf.substring(i - 1, i)) * (12 - i);
+    remainder = (sum * 10) % 11;
+    if (remainder === 10 || remainder === 11) remainder = 0;
+    if (remainder !== parseInt(cleanCpf.substring(10, 11))) return false;
+    return true;
+};
+
 const schema = z.object({
     name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres'),
     username: z.string().min(3).regex(/^[a-z0-9_]+$/, 'Apenas letras minúsculas, números e _'),
-    cpf: z.string().min(11, 'Preencha o CPF'),
+    cpf: z.string().min(11, 'Preencha o CPF').refine(isValidCpf, 'CPF Inválido'),
     phone: z.string().min(10, 'Preencha um número válido'),
     email: z.string().email('E-mail inválido'),
     password: z.string()
@@ -56,8 +73,9 @@ export default function RegisterPage() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
-    const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+    const { register, handleSubmit, watch, formState: { errors, touchedFields } } = useForm<FormData>({
         resolver: zodResolver(schema),
+        mode: 'onTouched',
     });
 
     // 🌊 3D Tilt Effect
@@ -207,7 +225,7 @@ export default function RegisterPage() {
                                             e.target.value = formatCPF(e.target.value);
                                             register('cpf').onChange(e);
                                         }}
-                                        className="input pl-9 w-full font-mono text-sm" 
+                                        className={`input pl-9 w-full font-mono text-sm ${errors.cpf && touchedFields.cpf ? 'border-no-500/50 focus:border-no-500/50 bg-no-500/5 ring-no-500/20' : ''}`} 
                                         placeholder="000.000.000-00" 
                                     />
                                 </div>
@@ -239,7 +257,12 @@ export default function RegisterPage() {
                             <label className="text-label text-text-muted block mb-1.5">E-mail</label>
                             <div className="relative">
                                 <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                                <input {...register('email')} type="email" className="input pl-9 w-full text-sm" placeholder="seu@email.com" />
+                                <input 
+                                    {...register('email')} 
+                                    type="email" 
+                                    className={`input pl-9 w-full text-sm ${errors.email && touchedFields.email ? 'border-no-500/50 focus:border-no-500/50 bg-no-500/5 ring-no-500/20' : ''}`} 
+                                    placeholder="seu@email.com" 
+                                />
                             </div>
                             {errors.email && <p className="text-no-400 text-tiny mt-1">{errors.email.message}</p>}
                         </div>
