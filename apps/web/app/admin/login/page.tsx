@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
 
             setUser(me);
             success('Bem-vindo, Comandante', 'Acesso autorizado ao terminal administrativo.');
-            router.push('/admin');
+            window.location.href = '/admin';
         } catch (err: any) {
             const msg = err?.response?.data?.message ?? 'Falha na autenticação administrativa.';
             setError(msg);
