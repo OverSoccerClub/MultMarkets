@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SystemVersion } from '@/components/layout/SystemVersion';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 const NAV_ITEMS = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -34,7 +35,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const pathname = usePathname();
     const router = useRouter();
     const { user, isAuthenticated, _hasHydrated, logout } = useAuthStore();
-    const [isAuthorized, setIsAuthorized] = React.useState(false);
 
     const handleLogout = async () => {
         try {
@@ -45,49 +45,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         logout();
         router.push('/admin/login');
     };
-
-    React.useEffect(() => {
-        if (!_hasHydrated) return; // Wait for zustand to restore from localStorage
-
-        // Skip check if we are already on the login page
-        if (pathname === '/admin/login') {
-            setIsAuthorized(true);
-            return;
-        }
-
-        // Check for admin role only
-        if (!isAuthenticated || user?.role !== 'ADMIN') {
-            router.push('/admin/login');
-        } else {
-            setIsAuthorized(true);
-        }
-    }, [pathname, isAuthenticated, user, router, _hasHydrated]);
-
-    // Wait for client hydration to prevent SSR mismatch and flash
-    if (!_hasHydrated) {
-        return <div className="min-h-screen bg-black" />;
-    }
-
-    // Don't render admin layout content if not authorized (except for login page)
-    if (!isAuthorized && pathname !== '/admin/login') {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-accent-500/20 border-t-accent-500 rounded-full animate-spin" />
-                    <span className="text-[10px] font-black text-accent-500 uppercase tracking-widest">Validando Credenciais...</span>
-                </div>
-            </div>
-        );
-    }
-
     // If we are on the login page, we don't want the full sidebar layout
     if (pathname === '/admin/login') {
         return <>{children}</>;
     }
 
     return (
-        <div className="flex min-h-screen bg-[#05080f] text-white selection:bg-accent-500/30">
-            {/* 🔮 Background Glows */}
+        <AuthGuard requiredRole="ADMIN">
+            <div className="flex min-h-screen bg-[#05080f] text-white selection:bg-accent-500/30">
+                {/* 🔮 Background Glows */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-500/10 rounded-full blur-[120px]" />
                 <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent-900/10 rounded-full blur-[100px]" />
@@ -243,5 +209,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </main>
         </div>
+        </AuthGuard>
     );
 }

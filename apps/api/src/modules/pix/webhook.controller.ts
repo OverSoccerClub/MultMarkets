@@ -1,11 +1,14 @@
 import {
     Controller, Post, Get, Body, HttpCode, HttpStatus, Logger,
-    Headers, BadRequestException, Query, Req,
+    Headers, BadRequestException, Query, Req, UseGuards, UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiExcludeEndpoint, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { PixService } from './pix.service';
 import { SettingsService } from '../settings/settings.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Webhooks')
 @Controller('webhooks')
@@ -97,7 +100,8 @@ export class WebhookController {
 
         // Basic webhook secret validation
         if (webhookSecret && headerSecret !== webhookSecret) {
-            this.logger.warn(`Webhook REJECTED signature match [${activeEnv}] (proceeding anyway for debugging): headerSecret=${headerSecret}, expected=${webhookSecret}`);
+            this.logger.warn(`Webhook REJECTED signature match [${activeEnv}]: headerSecret=${headerSecret}, expected=${webhookSecret}`);
+            throw new UnauthorizedException('Invalid webhook signature');
         }
 
         let event = body?.event || body?.type;
@@ -138,6 +142,9 @@ export class WebhookController {
 
     @Post('bankizi/simulate')
     @HttpCode(HttpStatus.OK)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles('ADMIN')
+    @ApiBearerAuth()
     @ApiOperation({ summary: 'Simulate a webhook payment confirmation (for testing)' })
     async simulateBankiziWebhook(
         @Query('txId') txId: string,

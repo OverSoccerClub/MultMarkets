@@ -35,13 +35,12 @@ async function bootstrap() {
 
     app.enableCors({
         origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl requests)
+            // Allow requests with no origin (like mobile apps)
             if (!origin) return callback(null, true);
             
-            // Check if origin is in the allowed list or is a localhost/loopback
-            const isAllowed = allowedOrigins.includes(origin) || 
-                             origin.includes('localhost') || 
-                             origin.includes('127.0.0.1');
+            // Explicitly check allowed list
+            // We only allow local dev if explicitly in the list
+            const isAllowed = allowedOrigins.includes(origin);
 
             if (isAllowed) {
                 callback(null, true);

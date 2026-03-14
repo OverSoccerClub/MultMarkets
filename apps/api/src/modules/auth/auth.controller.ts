@@ -5,7 +5,7 @@ import {
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, Verify2faDto, RefreshTokenDto, VerifyKycDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, ForgotPasswordDto, ResetPasswordDto, Verify2faDto, RefreshTokenDto, VerifyKycDto, UpdateProfileDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -111,7 +111,7 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Atualizar dados do perfil (CPF, Bio, Avatar)' })
-    updateProfile(@CurrentUser() user: any, @Body() dto: any) {
+    updateProfile(@CurrentUser() user: any, @Body() dto: UpdateProfileDto) {
         return this.authService.updateProfile(user.id, dto);
     }
 }

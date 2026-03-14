@@ -9,7 +9,7 @@ import { authenticator } from 'otplib';
 import * as QRCode from 'qrcode';
 import { randomUUID as uuid, randomInt } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RegisterDto, LoginDto, VerifyKycDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, VerifyKycDto, UpdateProfileDto, ResetPasswordDto } from './dto/auth.dto';
 import { EmailService } from '../email/email.service';
 import { SmsService } from '../email/sms.service';
 import { JWT } from '@multmarkets/shared';
@@ -253,7 +253,31 @@ export class AuthService {
             throw new UnauthorizedException('Sessão inválida');
         }
 
+        // Validate old session exists
+        const oldSession = await this.prisma.userSession.findFirst({
+            where: { tokenHash: payload.sessionId, expiresAt: { gt: new Date() } }
+        });
+
+        if (!oldSession) {
+            throw new UnauthorizedException('Sessão expirada ou não encontrada');
+        }
+
+        // Revoke old session
+        await this.prisma.userSession.delete({ where: { id: oldSession.id } });
+
         const newSessionId = this.generateSecureToken();
+        const sessionHash = await bcrypt.hash(newSessionId, 8);
+        
+        await this.prisma.userSession.create({
+            data: {
+                userId: user.id,
+                tokenHash: sessionHash,
+                ipAddress: oldSession.ipAddress,
+                deviceInfo: oldSession.deviceInfo,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            },
+        });
+
         return this.issueTokens(user.id, user.email, user.role, newSessionId);
     }
 
@@ -367,7 +391,7 @@ export class AuthService {
     }
 
     // ── PROFILE UPDATE ───────────────────────────────────────────────
-    async updateProfile(userId: string, data: { cpf?: string, bio?: string, avatarUrl?: string }) {
+    async updateProfile(userId: string, data: UpdateProfileDto) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new NotFoundException('Usuário não encontrado');
         
@@ -392,6 +416,7 @@ export class AuthService {
         const updatedUser = await this.prisma.user.update({
             where: { id: userId },
             data: {
+                ...(data.name && { name: data.name }),
                 ...(data.cpf && { cpf: data.cpf }),
                 ...(data.bio && { bio: data.bio }),
                 ...(data.avatarUrl && { avatarUrl: data.avatarUrl }),

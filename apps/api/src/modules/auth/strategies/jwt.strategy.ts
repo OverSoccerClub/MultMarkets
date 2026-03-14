@@ -17,14 +17,28 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         private config: ConfigService,
         private prisma: PrismaService,
     ) {
+        const secret = config?.get<string>('JWT_SECRET') || process.env.JWT_SECRET;
+        if (!secret) {
+            throw new Error('JWT_SECRET is required');
+        }
+
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: config?.get<string>('JWT_SECRET') || process.env.JWT_SECRET || 'fallback_secret',
+            secretOrKey: secret,
         });
     }
 
     async validate(payload: JwtPayload) {
+        if (payload.sessionId) {
+            const session = await this.prisma.userSession.findFirst({
+                where: { tokenHash: payload.sessionId, expiresAt: { gt: new Date() } },
+            });
+            if (!session) {
+                throw new UnauthorizedException('Sessão expirada ou revogada');
+            }
+        }
+
         const user = await this.prisma.user.findUnique({
             where: { id: payload.sub },
             select: {

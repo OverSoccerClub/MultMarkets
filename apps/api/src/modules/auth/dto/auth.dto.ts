@@ -48,7 +48,24 @@ export class ForgotPasswordDto {
 
 export class ResetPasswordDto {
     @ApiProperty() @IsString() token: string;
-    @ApiProperty() @IsString() @MinLength(8) password: string;
+    @ApiProperty() @IsString() @MinLength(8)
+    @Matches(/[A-Z]/, { message: 'Senha deve ter ao menos uma maiúscula' })
+    @Matches(/[0-9]/, { message: 'Senha deve ter ao menos um número' })
+    password: string;
+}
+
+export class UpdateProfileDto {
+    @ApiProperty({ required: false }) @IsOptional() @IsString() @MinLength(2) @MaxLength(100)
+    name?: string;
+
+    @ApiProperty({ required: false }) @IsOptional() @IsString() @MaxLength(500)
+    bio?: string;
+
+    @ApiProperty({ required: false }) @IsOptional() @IsString()
+    avatarUrl?: string;
+
+    @ApiProperty({ required: false }) @IsOptional() @IsString() @MinLength(11) @MaxLength(14)
+    cpf?: string;
 }
 
 export class Verify2faDto {

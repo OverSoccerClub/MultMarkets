@@ -24,26 +24,60 @@ api.interceptors.request.use((config) => {
 });
 
 // Auto-refresh on 401
+let refreshingPromise: Promise<string> | null = null;
+
 api.interceptors.response.use(
     (r) => r,
     async (error) => {
         const original = error.config;
         if (error.response?.status === 401 && !original._retry) {
             original._retry = true;
-            try {
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (!refreshToken) throw new Error('No refresh token');
 
-                const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-                localStorage.setItem('access_token', data.accessToken);
-                localStorage.setItem('refresh_token', data.refreshToken);
-                original.headers.Authorization = `Bearer ${data.accessToken}`;
+            // If a refresh is already in progress, wait for it
+            if (refreshingPromise) {
+                try {
+                    const newToken = await refreshingPromise;
+                    original.headers.Authorization = `Bearer ${newToken}`;
+                    return api(original);
+                } catch {
+                    return Promise.reject(error);
+                }
+            }
+
+            // Start a new refresh
+            refreshingPromise = (async () => {
+                try {
+                    const refreshToken = localStorage.getItem('refresh_token');
+                    if (!refreshToken) throw new Error('No refresh token');
+
+                    const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+                    
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('access_token', data.accessToken);
+                        localStorage.setItem('refresh_token', data.refreshToken);
+                        // Sync to cookie for middleware
+                        document.cookie = `access_token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
+                    }
+                    
+                    return data.accessToken;
+                } finally {
+                    refreshingPromise = null;
+                }
+            })();
+
+            try {
+                const newToken = await refreshingPromise;
+                original.headers.Authorization = `Bearer ${newToken}`;
                 return api(original);
-            } catch {
-                // Logout
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                window.location.href = '/auth/login';
+            } catch (err) {
+                // Logout and redirect
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    document.cookie = 'access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    window.location.href = '/auth/login';
+                }
+                return Promise.reject(err);
             }
         }
         return Promise.reject(error);

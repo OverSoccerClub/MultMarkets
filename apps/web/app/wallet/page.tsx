@@ -6,6 +6,7 @@ import { walletApi, pixApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import Link from 'next/link';
 import QRCode from 'react-qr-code';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatBRL(value: number) {
@@ -197,7 +198,8 @@ export default function WalletPage() {
     const quickAmounts = [25, 50, 100, 200, 500];
 
     return (
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20">
+        <AuthGuard>
+            <div className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-20">
             {/* ── Header ──────────────────────────────────────────────── */}
             <header className="mb-12 space-y-2">
                 <div className="flex items-center gap-3">
@@ -645,5 +647,6 @@ export default function WalletPage() {
                 </div>
             )}
         </div>
+        </AuthGuard>
     );
 }
