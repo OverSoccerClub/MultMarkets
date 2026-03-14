@@ -115,6 +115,7 @@ export default function RegisterPage() {
         
         try {
             const res = await authApi.register(payload);
+            // Redireciona para a tela de verificação/ativação
             router.push(`/auth/verify?userId=${res.data.userId}` as any);
         } catch (err: any) {
             setError(err?.response?.data?.message ?? 'Erro ao criar conta.');
@@ -123,26 +124,7 @@ export default function RegisterPage() {
         }
     };
 
-    if (success) {
-        return (
-            <div className="min-h-screen flex items-center justify-center px-4">
-                <motion.div
-                    className="text-center space-y-4"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                >
-                    <CheckCircle2 size={64} className="text-yes-400 mx-auto" />
-                    <h2 className="text-h3 font-display font-bold text-text-primary">Conta criada!</h2>
-                    <p className="text-text-secondary text-body-sm max-w-sm mx-auto">
-                        Enviamos um e-mail de verificação. Clique no link para ativar sua conta.
-                    </p>
-                    <Link href="/auth/login" className="btn btn-primary px-8 py-3 inline-flex">
-                        Ir para o Login
-                    </Link>
-                </motion.div>
-            </div>
-        );
-    }
+
 
     return (
         <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-black selection:bg-accent-500/30 overflow-hidden relative">

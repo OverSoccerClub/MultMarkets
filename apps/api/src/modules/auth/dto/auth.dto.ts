@@ -33,7 +33,7 @@ export class RegisterDto {
 export class VerifyKycDto {
     @ApiProperty() @IsString() userId: string;
     @ApiProperty() @IsString() @MinLength(6) @MaxLength(6) emailCode: string;
-    @ApiProperty() @IsString() @MinLength(6) @MaxLength(6) smsCode: string;
+    @ApiProperty({ required: false }) @IsOptional() @IsString() @MinLength(6) @MaxLength(6) smsCode?: string;
 }
 
 export class LoginDto {

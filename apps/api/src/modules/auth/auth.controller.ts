@@ -35,6 +35,13 @@ export class AuthController {
         return this.authService.verifyKyc(dto);
     }
 
+    @Post('resend-verification/:userId')
+    @Throttle({ short: { limit: 2, ttl: 60000 } })
+    @ApiOperation({ summary: 'Reenviar código de verificação' })
+    resendVerification(@Param('userId') userId: string) {
+        return this.authService.resendVerification(userId);
+    }
+
     @Post('login')
     @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 per minute
     @HttpCode(HttpStatus.OK)

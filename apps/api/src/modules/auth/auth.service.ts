@@ -136,27 +136,50 @@ export class AuthService {
         const smsTokens = user.verificationCodes.filter(c => c.type === 'SMS_OTP');
 
         const validEmailCode = emailTokens.find(c => c.code === dto.emailCode);
-        const validSmsCode = smsTokens.find(c => c.code === dto.smsCode);
+        const validSmsCode = dto.smsCode ? smsTokens.find(c => c.code === dto.smsCode) : null;
 
         if (!validEmailCode) {
             throw new BadRequestException('Código de E-mail incorreto ou expirado.');
         }
-        if (!validSmsCode) {
+        
+        if (dto.smsCode && !validSmsCode) {
             throw new BadRequestException('Código SMS incorreto ou expirado.');
         }
+
+        const codesToUpdate = [validEmailCode.id];
+        if (validSmsCode) codesToUpdate.push(validSmsCode.id);
 
         await this.prisma.$transaction([
             this.prisma.user.update({
                 where: { id: user.id },
-                data: { emailVerified: true, phoneVerified: true },
+                data: { 
+                    emailVerified: true, 
+                    ...(validSmsCode && { phoneVerified: true }) 
+                },
             }),
             this.prisma.verificationCode.updateMany({
-                where: { id: { in: [validEmailCode.id, validSmsCode.id] } },
+                where: { id: { in: codesToUpdate } },
                 data: { usedAt: new Date() },
             })
         ]);
 
         return { message: 'Conta validada com sucesso! Você já pode fazer login.' };
+    }
+
+    async resendVerification(userId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Usuário não encontrado.');
+        if (user.emailVerified) throw new BadRequestException('Usuário já verificado.');
+
+        const emailCode = this.generateOtp();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await this.prisma.verificationCode.create({
+            data: { userId: user.id, code: emailCode, type: 'EMAIL_OTP', expiresAt },
+        });
+
+        await this.emailService.sendOtpEmail(user.email, user.name, emailCode);
+        return { message: 'Novo código enviado para seu e-mail.' };
     }
 
     // ── VERIFY EMAIL ─────────────────────────────────────────────────
